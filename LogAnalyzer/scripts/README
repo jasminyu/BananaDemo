@@ -1,0 +1,2 @@
+1.Modify the setenv.sh;
+2.Put the setenv.sh to tomcat's bin directory.
