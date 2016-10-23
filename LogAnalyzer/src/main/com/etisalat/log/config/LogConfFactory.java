@@ -110,9 +110,7 @@ public class LogConfFactory {
         JsonUtil.setJsonParser(new JsonParserImpl());
 
         // loading logconf.properties
-        // TODO YU
-        //                      configFilePath = "E:\\Component\\Solr\\tmp\\LogAnalyzer\\logconf\\";
-        configFilePath = System.getProperty(LogConstants.LOG_CONF_PATH,
+      configFilePath = System.getProperty(LogConstants.LOG_CONF_PATH,
                 System.getProperty("user.dir") + File.separator + "logconf" + File.separator);
         if (null == configFilePath) {
             logger.info("Get Solr Server Conf URL failed, please Check System's Configuration!");

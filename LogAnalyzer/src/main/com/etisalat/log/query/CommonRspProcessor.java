@@ -219,11 +219,10 @@ public class CommonRspProcessor implements RspProcess {
             }
         }
 
-        if (rspJsonList.size() == 0) {
-            return queryCondition.getLocalPath();
+        if (rspJsonList.size() != 0) {
+        	 write(getFileName(fileIdx++), SolrUtils.getCsvString(rspJsonList));
         }
 
-        write(getFileName(fileIdx++), SolrUtils.getCsvString(rspJsonList));
         return queryCondition.getLocalPath();
     }
 

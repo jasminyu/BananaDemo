@@ -1,47 +1,26 @@
 package com.etisalat.log.sort;
 
-import com.etisalat.log.common.AssertUtil;
-import com.etisalat.log.config.LogConfFactory;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import static com.etisalat.log.sort.SortField.Type.text_general;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.apache.lucene.util.BytesRef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.*;
-
-import static com.etisalat.log.sort.SortField.Type.text_general;
+import com.etisalat.log.common.AssertUtil;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 public class SortUtils {
     private static final Logger logger = LoggerFactory.getLogger(SortUtils.class);
     private static final StringComparator STRING_COMPARATOR = new StringComparator();
-
-    public static void main(String[] args) throws IOException {
-        //        Schema schema = schemaFileToBean();
-        //
-        //        for (Field field : schema.getFields()) {
-        //            System.out.println(field.getName() + "--" + field.getType());
-        //        }
-
-        String res = LogConfFactory.getString("xxx",
-                "{\"responseHeader\":{\"status\":0,\"QTime\":0,\"params\":{\"q\":\"*:*\",\"rows\":\"0\",\"wt\":\"json\"}},\"response\":{\"numFound\":0,\"start\":0,\"docs\":[]}}");
-
-        System.out.println("xxx");
-    }
-
-    private static boolean isNumeric(SortField sortField) {
-        switch (sortField.getType()) {
-        case double_n:
-        case float_n:
-        case integer:
-        case long_n:
-            return true;
-        default:
-            return false;
-        }
-    }
 
     private static boolean isComparable(SortField sortField) {
         if (sortField.getType().equals(text_general)) {
@@ -96,7 +75,7 @@ public class SortUtils {
 
     }
 
-    public static void sortSingleShardRsp(List<SortField> fields, List<JsonObject> data) {
+    public static void sortSingleShardRsp(final List<SortField> fields, List<JsonObject> data) {
         AssertUtil.noneNull("invalid arguments", fields, data);
         if (fields.size() == 0 || data.size() == 0) {
             return;
@@ -130,7 +109,7 @@ public class SortUtils {
         return resArr;
     }
 
-    public static String[] sort(Map<String, List<JsonObject>> shardResults, List<SortField> fields, int size,
+    public static List<JsonObject> sort(Map<String, List<JsonObject>> shardResults, List<SortField> fields, int size,
             String uniqueKey) {
         // TODO YU check the params
         if (fields == null || fields.isEmpty()) {
@@ -155,16 +134,17 @@ public class SortUtils {
                 queue.insertWithOverflow(shardRsp);
             }
         }
-        String[] returnIds = new String[size];
+        
+        List<JsonObject> sortedResults = new ArrayList<JsonObject>();
         for (int i = size - 1; i >= 0; i--) {
             ShardRsp shardRsp = queue.pop();
-            returnIds[i] = shardRsp.getSortFieldValues().get(shardRsp.orderInShard).get(uniqueKey).getAsString();
+            sortedResults.add(shardRsp.getSortFieldValues().get(shardRsp.orderInShard));
         }
 
         long timeCost = (System.currentTimeMillis() - start);
         logger.info("sort cost {} secs", timeCost);
 
-        return returnIds;
+        return sortedResults;
     }
 
 }

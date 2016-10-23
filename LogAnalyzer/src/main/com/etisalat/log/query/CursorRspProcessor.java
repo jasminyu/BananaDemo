@@ -6,10 +6,12 @@ import com.etisalat.log.common.WTType;
 import com.etisalat.log.config.LogConfFactory;
 import com.etisalat.log.parser.Cursor;
 import com.etisalat.log.parser.QueryCondition;
+import com.etisalat.log.sort.SortField;
 import com.etisalat.log.sort.SortUtils;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,31 +62,61 @@ public class CursorRspProcessor implements RspProcess {
                 break;
             }
         }
+        
+		Map<String, List<JsonObject>> resultMap = QueryBatch.RESULTS_FOR_SHARDS
+				.get(cacheKey);
+		if (resultMap == null) {
+			String errMsg = "failed to query for null results.";
+			logger.error(errMsg);
+			throw new LogQueryException("errMsg");
+		}
+		
+		return export(resultMap);
 
-        Map<String, List<JsonObject>> resultMap = QueryBatch.RESULTS_FOR_SHARDS.get(cacheKey);
-        if (resultMap == null) {
-            String errMsg = "failed to query for null results.";
-            logger.error(errMsg);
-            throw new LogQueryException("errMsg");
-        }
-
-        try {
-            if (WTType.JSON == queryCondition.getWtType()) {
-                return writeJsonFiles(resultMap.entrySet());
-            } else if (WTType.CSV == queryCondition.getWtType()) {
-                return writeCSVFiles(resultMap.entrySet());
-            } else if (WTType.XML == queryCondition.getWtType()) {
-                return writeXmlFiles(resultMap.entrySet());
-            } else {
-                throw new LogQueryException("Unknown wtType.");
-            }
-        } catch (IOException e) {
-            throw new LogQueryException("failed to download data, " + e.getMessage());
-        }
     }
+    
+    private String export(Map<String, List<JsonObject>> resultMap) throws LogQueryException {
+		List<SortField> fields = queryCondition.getSortedFields();
+		if (fields == null || fields.size() == 0) {
+			return exportWithoutSort(resultMap);
+		}
 
-    private String getFileName() {
-        return queryCondition.getLocalPath() + File.separator + "data-" + System.nanoTime() + "." + queryCondition
+		List<JsonObject> results = SortUtils.sort(resultMap, fields,
+				(int) realReturnNum, LogConfFactory.uniqueKey);
+		try {
+			if (WTType.JSON == queryCondition.getWtType()) {
+				return writeJsonFiles(results);
+			} else if (WTType.CSV == queryCondition.getWtType()) {
+				return writeCSVFiles(results);
+			} else if (WTType.XML == queryCondition.getWtType()) {
+				return writeXmlFiles(results);
+			} else {
+				throw new LogQueryException("Unknown wtType.");
+			}
+		} catch (IOException e) {
+			throw new LogQueryException("failed to download data, "
+					+ e.getMessage());
+		}
+	}
+
+    private String exportWithoutSort(Map<String, List<JsonObject>> resultMap) throws LogQueryException {
+    	try {
+    		if (WTType.JSON == queryCondition.getWtType()) {
+    			return writeJsonFiles(resultMap.entrySet());
+    			} else if (WTType.CSV == queryCondition.getWtType()) {
+    				return writeCSVFiles(resultMap.entrySet());
+    				} else if (WTType.XML == queryCondition.getWtType()) {
+    			return writeXmlFiles(resultMap.entrySet());                   
+    			} else {
+                   throw new LogQueryException("Unknown wtType.");
+               }
+           } catch (IOException e) {
+               throw new LogQueryException("failed to download data, " + e.getMessage());
+           }
+    }
+ 
+    private String getFileName(int fileIdx) {
+        return queryCondition.getLocalPath() + File.separator + "data-" + fileIdx + "." + queryCondition
                 .getWtType().name().toLowerCase();
     }
 
@@ -114,6 +146,7 @@ public class CursorRspProcessor implements RspProcess {
         List<JsonObject> jsonObjects = null;
         int docNum = 0;
         boolean finished = false;
+        int fileIdx = 0;
         for (Map.Entry<String, List<JsonObject>> entry : entrySet) {
             if (finished) {
                 break;
@@ -131,7 +164,7 @@ public class CursorRspProcessor implements RspProcess {
                 rspJsonList.add(jsonObj);
                 if (docNum % singleFileSize == 0) {
                     rspJson.add("docs", rspJsonList);
-                    write(getFileName(), JsonUtil.toJson(resultObj));
+                    write(getFileName(fileIdx++), JsonUtil.toJson(resultObj));
                     rspJsonList = new JsonArray();
                 }
             }
@@ -139,43 +172,7 @@ public class CursorRspProcessor implements RspProcess {
 
         if (!finished && rspJsonList.size() != 0) {
             rspJson.add("docs", rspJsonList);
-            write(getFileName(), JsonUtil.toJson(resultObj));
-        }
-
-        return queryCondition.getLocalPath();
-    }
-
-    private String writeJsonFiles(List<JsonObject> jsonObjects) throws IOException {
-        JsonObject resultObj = SolrUtils.deepCopyJsonObj(LogConfFactory.solrQueryRspJsonObj);
-        JsonObject rspJson = resultObj.getAsJsonObject("response");
-        if (null == rspJson) {
-            logger.error("rspJson is null and return null!");
-            return null;
-        }
-
-        JsonArray rspJsonList = new JsonArray();
-        rspJson.addProperty("nums", realReturnNum);
-        int docNum = 0;
-        boolean finished = false;
-        for (JsonObject jsonObj : jsonObjects) {
-            if (docNum >= realReturnNum) {
-                finished = true;
-                break;
-            }
-
-            docNum++;
-
-            rspJsonList.add(jsonObj);
-            if (docNum % singleFileSize == 0) {
-                rspJson.add("docs", rspJsonList);
-                write(getFileName(), JsonUtil.toJson(resultObj));
-                rspJsonList = new JsonArray();
-            }
-        }
-
-        if (!finished && rspJsonList.size() != 0) {
-            rspJson.add("docs", rspJsonList);
-            write(getFileName(), JsonUtil.toJson(resultObj));
+            write(getFileName(fileIdx++), JsonUtil.toJson(resultObj));
         }
 
         return queryCondition.getLocalPath();
@@ -186,8 +183,9 @@ public class CursorRspProcessor implements RspProcess {
         int docNum = 0;
         XmlWriter xmlWriter = null;
         boolean finished = false;
+        int fileIdx = 0;
         try {
-            xmlWriter = XmlWriter.getWriter(getFileName(), realReturnNum);
+            xmlWriter = XmlWriter.getWriter(getFileName(fileIdx++), realReturnNum);
             xmlWriter.writeStart();
             for (Map.Entry<String, List<JsonObject>> entry : entrySet) {
                 if (finished) {
@@ -212,7 +210,7 @@ public class CursorRspProcessor implements RspProcess {
                             finished = true;
                             break;
                         } else {
-                            xmlWriter = XmlWriter.getWriter(getFileName(), realReturnNum);
+                            xmlWriter = XmlWriter.getWriter(getFileName(fileIdx++), realReturnNum);
                             xmlWriter.writeStart();
                         }
                     }
@@ -232,50 +230,6 @@ public class CursorRspProcessor implements RspProcess {
         return queryCondition.getLocalPath();
     }
 
-    private String writeXmlFiles(List<JsonObject> jsonObjects) throws IOException {
-        XmlWriter xmlWriter = null;
-        int docNum = 0;
-        boolean finished = false;
-        try {
-            xmlWriter = XmlWriter.getWriter(getFileName(), realReturnNum);
-            xmlWriter.writeStart();
-
-            for (JsonObject jsonObj : jsonObjects) {
-                if (docNum >= realReturnNum) {
-                    finished = true;
-                    break;
-                }
-
-                docNum++;
-                xmlWriter.writeXmlJson(jsonObj);
-                if (docNum % singleFileSize == 0) {
-                    xmlWriter.writeEnd();
-                    xmlWriter.flush();
-                    xmlWriter.close();
-
-                    if (docNum >= realReturnNum) {
-                        finished = true;
-                        break;
-                    } else {
-                        xmlWriter = XmlWriter.getWriter(getFileName(), realReturnNum);
-                        xmlWriter.writeStart();
-                    }
-                }
-            }
-
-            if (!finished && docNum % singleFileSize != 0) {
-                xmlWriter.writeEnd();
-                xmlWriter.flush();
-                xmlWriter.close();
-            }
-        } finally {
-            if (xmlWriter != null && !xmlWriter.isClosed()) {
-                xmlWriter.close();
-            }
-        }
-        return queryCondition.getLocalPath();
-    }
-
     private String writeCSVFiles(Set<Map.Entry<String, List<JsonObject>>> entrySet) throws IOException {
         String csvHeader = null;
         StringBuilder builder = new StringBuilder();
@@ -283,6 +237,7 @@ public class CursorRspProcessor implements RspProcess {
         boolean first = true;
         int docNum = 0;
         boolean finished = false;
+        int fileIdx = 0;
         for (Map.Entry<String, List<JsonObject>> entry : entrySet) {
             if (finished) {
                 break;
@@ -314,7 +269,7 @@ public class CursorRspProcessor implements RspProcess {
 
                 builder.append("\n");
                 if (docNum % singleFileSize == 0) {
-                    write(getFileName(), builder.toString());
+                    write(getFileName(fileIdx++), builder.toString());
                     builder.delete(0, builder.length());
                     if (LogConfFactory.keepCsvHeader) {
                         builder.append(csvHeader).append("\n");
@@ -325,20 +280,102 @@ public class CursorRspProcessor implements RspProcess {
         }
 
         if (!finished && builder.length() != 0) {
-            write(getFileName(), builder.toString());
+            write(getFileName(fileIdx++), builder.toString());
         }
 
         return queryCondition.getLocalPath();
     }
 
+    private String writeJsonFiles(List<JsonObject> jsonObjects) throws IOException {
+        JsonObject resultObj = SolrUtils.deepCopyJsonObj(LogConfFactory.solrQueryRspJsonObj);
+        JsonObject rspJson = resultObj.getAsJsonObject("response");
+        if (null == rspJson) {
+            logger.error("rspJson is null and return null!");
+            return null;
+        }
+
+        JsonArray rspJsonList = new JsonArray();
+        rspJson.addProperty("nums", realReturnNum);
+        int docNum = 0;
+        boolean finished = false;
+        int fileIdx = 0; 
+        for (JsonObject jsonObj : jsonObjects) {
+            if (docNum >= realReturnNum) {
+                finished = true;
+                break;
+            }
+
+            docNum++;
+
+            rspJsonList.add(jsonObj);
+            if (docNum % singleFileSize == 0) {
+                rspJson.add("docs", rspJsonList);
+                write(getFileName(fileIdx++), JsonUtil.toJson(resultObj));
+                rspJsonList = new JsonArray();
+            }
+        }
+
+        if (!finished && rspJsonList.size() != 0) {
+            rspJson.add("docs", rspJsonList);
+            write(getFileName(fileIdx++), JsonUtil.toJson(resultObj));
+        }
+
+        return queryCondition.getLocalPath();
+    }
+   
+    private String writeXmlFiles(List<JsonObject> jsonObjects) throws IOException {
+        XmlWriter xmlWriter = null;
+        int docNum = 0;
+        boolean finished = false;
+        int fileIdx = 0;
+        try {
+            xmlWriter = XmlWriter.getWriter(getFileName(fileIdx++), realReturnNum);
+            xmlWriter.writeStart();
+
+            for (JsonObject jsonObj : jsonObjects) {
+                if (docNum >= realReturnNum) {
+                    finished = true;
+                    break;
+                }
+
+                docNum++;
+                xmlWriter.writeXmlJson(jsonObj);
+                if (docNum % singleFileSize == 0) {
+                    xmlWriter.writeEnd();
+                    xmlWriter.flush();
+                    xmlWriter.close();
+
+                    if (docNum >= realReturnNum) {
+                        finished = true;
+                        break;
+                    } else {
+                        xmlWriter = XmlWriter.getWriter(getFileName(fileIdx++), realReturnNum);
+                        xmlWriter.writeStart();
+                    }
+                }
+            }
+
+            if (!finished && docNum % singleFileSize != 0) {
+                xmlWriter.writeEnd();
+                xmlWriter.flush();
+                xmlWriter.close();
+            }
+        } finally {
+            if (xmlWriter != null && !xmlWriter.isClosed()) {
+                xmlWriter.close();
+            }
+        }
+        return queryCondition.getLocalPath();
+    }
+    
     private String writeCSVFiles(List<JsonObject> jsonObjectList) throws IOException {
         String csvHeader = null;
         StringBuilder builder = new StringBuilder();
-        List<JsonObject> jsonObjects = null;
         boolean first = true;
         int docNum = 0;
         boolean finished = false;
-        for (JsonObject jsonObj : jsonObjects) {
+        int fileIdx = 0;
+        for (JsonObject jsonObj : jsonObjectList) {
             if (docNum >= realReturnNum) {
                 finished = true;
                 break;
@@ -363,7 +400,7 @@ public class CursorRspProcessor implements RspProcess {
             builder.append("\n");
 
             if (docNum % singleFileSize == 0) {
-                write(getFileName(), builder.toString());
+                write(getFileName(fileIdx++), builder.toString());
                 builder.delete(0, builder.length());
                 if (LogConfFactory.keepCsvHeader) {
                     builder.append(csvHeader).append("\n");
@@ -372,7 +409,7 @@ public class CursorRspProcessor implements RspProcess {
         }
 
         if (!finished && builder.length() != 0) {
-            write(getFileName(), builder.toString());
+            write(getFileName(fileIdx++), builder.toString());
         }
 
         return queryCondition.getLocalPath();

@@ -312,16 +312,6 @@ public class SolrUtils {
         return collection + shardId;
     }
 
-    protected static String getCsvString(JsonObject jsonObject) {
-        Set<Map.Entry<String, JsonElement>> set = jsonObject.entrySet();
-        StringBuilder builder = new StringBuilder();
-        for (Map.Entry<String, JsonElement> entry : set) {
-            builder.append(",").append(entry.getValue().getAsString());
-        }
-
-        return builder.delete(0, 1).toString();
-    }
-
     protected static String getCsvString(JsonArray jsonArray) {
         if (jsonArray.size() == 0) {
             return "";

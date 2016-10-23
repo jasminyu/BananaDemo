@@ -60,6 +60,7 @@ public class LogDispatchFilter implements Filter {
             try {
                 LoginUtil.login();
             } catch (IOException e) {
+            	logger.error("failed to login the cluster.", e);
                 throw new ServletException("failed to login the cluster.");
             }
         }
