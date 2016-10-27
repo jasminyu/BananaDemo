@@ -1,23 +1,23 @@
-°²×°×¼±¸£º
-1.ÏÂÔØ²¢°²×°JDK,JDK°æ±¾Ê¹ÓÃ1.8+Èçjdk1.8.0_51
-2.ÏÂÔØ²¢½âÑ¹Apache Tomcat 7 or Tomcat 8; Èç /opt/apache-tomcat-7.0.63;
-3.½«WebRootÖØÃûÎªLogAnalyzer£¬²¢¿½±´µ½ /opt/apache-tomcat-7.0.63/webappsÏÂ£»Èç/opt/apache-tomcat-7.0.63/webapps/LogAnalyzer
-4.´´½¨ÅäÖÃÎÄ¼şÄ¿Â¼£º/opt/apache-tomcat-7.0.63/logconf/
-5.½«dependent_jars_listÁĞµÄjarÎÄ¼ş¿½±´µ½/opt/apache-tomcat-7.0.63/webapps/LogAnalyzer/WEB-INF/libÄ¿Â¼ÏÂ
-6.½«scriptsÄ¿Â¼ÏÂµÄshell½Å±¾¿½±´µ½/opt/apache-tomcat-7.0.63/binÄ¿Â¼ÏÂ£¬²¢Ö´ĞĞ chmod u+x *.sh
+å®‰è£…å‡†å¤‡ï¼š
+1.ä¸‹è½½å¹¶å®‰è£…JDK,JDKç‰ˆæœ¬ä½¿ç”¨1.8+å¦‚jdk1.8.0_51
+2.ä¸‹è½½å¹¶è§£å‹Apache Tomcat 7 or Tomcat 8; å¦‚ /opt/apache-tomcat-7.0.63;
+3.å°†WebRooté‡åä¸ºLogAnalyzerï¼Œå¹¶æ‹·è´åˆ° /opt/apache-tomcat-7.0.63/webappsä¸‹ï¼›å¦‚/opt/apache-tomcat-7.0.63/webapps/LogAnalyzer
+4.åˆ›å»ºé…ç½®æ–‡ä»¶ç›®å½•ï¼š/opt/apache-tomcat-7.0.63/logconf/
+5.å°†dependent_jars_liståˆ—çš„jaræ–‡ä»¶æ‹·è´åˆ°/opt/apache-tomcat-7.0.63/webapps/LogAnalyzer/WEB-INF/libç›®å½•ä¸‹
+6.å°†scriptsç›®å½•ä¸‹çš„shellè„šæœ¬æ‹·è´åˆ°/opt/apache-tomcat-7.0.63/binç›®å½•ä¸‹ï¼Œå¹¶æ‰§è¡Œ chmod u+x *.sh
 
-½Å±¾ĞŞ¸Ä
-#/opt/apache-tomcat-7.0.63/lbin/setenv.shÖĞ½«JAVA_HOMEÅäÖÃ³Éjdk°²×°Â·¾¶£¬JDK°æ±¾Ê¹ÓÃ1.8+
+è„šæœ¬ä¿®æ”¹:
+#/opt/apache-tomcat-7.0.63/lbin/setenv.shä¸­å°†JAVA_HOMEé…ç½®æˆjdkå®‰è£…è·¯å¾„ï¼ŒJDKç‰ˆæœ¬ä½¿ç”¨1.8+
 export JAVA_HOME=/opt/huawei/Bigdata/jdk1.8.0_51/
 
-ÅäÖÃ£º
-1. ½«HBase¿Í»§¶ËµÄÅäÖÃÎÄ¼şcore-site.xml¡¢hbase-site.xml¡¢hdfs-site.xml¿½±´µ½/opt/apache-tomcat-7.0.63/webapps/LogAnalyzer/WEB-INF/classesÄ¿Â¼ÏÂ
-2.ÏÂÔØkrb5.conf¡¢Ó¦ÓÃÕË»§keytabÎÄ¼ş¿½±´µ½tomcat°²×°Â·¾¶logconfÄ¿Â¼ÏÂ£»²¢ĞŞ¸ÄĞŞ¸Ä/opt/apache-tomcat-7.0.63/logconf/logconf.properties¶ÔÓ¦ÅäÖÃ
+é…ç½®ï¼š
+1. å°†HBaseå®¢æˆ·ç«¯çš„é…ç½®æ–‡ä»¶core-site.xmlã€hbase-site.xmlã€hdfs-site.xmlæ‹·è´åˆ°/opt/apache-tomcat-7.0.63/webapps/LogAnalyzer/WEB-INF/classesç›®å½•ä¸‹
+2.ä¸‹è½½krb5.confã€åº”ç”¨è´¦æˆ·keytabæ–‡ä»¶æ‹·è´åˆ°tomcatå®‰è£…è·¯å¾„logconfç›®å½•ä¸‹ï¼›å¹¶ä¿®æ”¹ä¿®æ”¹/opt/apache-tomcat-7.0.63/logconf/logconf.propertieså¯¹åº”é…ç½®
 user.principal=
 keytab.file.path=
 krb5.conf.path=
-3.ĞŞ¸Ätomcat°²×°Â·¾¶/opt/apache-tomcat-7.0.63/logconf/logconf.properties
-#zkHostsÅäÖÃÖµ¿ÉµÇÂ¼Solr Admin UI»ñÈ¡¡£
+3.ä¿®æ”¹tomcatå®‰è£…è·¯å¾„/opt/apache-tomcat-7.0.63/logconf/logconf.properties
+#zkHostsé…ç½®å€¼å¯ç™»å½•Solr Admin UIè·å–ã€‚
 solr.zkHost=192.168.213.6:24002,192.168.213.5:24002,192.168.213.4:24002/solr
-#IPÌæ»»³ÉSolrAdminµÄ¸¡¶¯IP
+#IPæ›¿æ¢æˆSolrAdminçš„æµ®åŠ¨IP
 search.server.url=https://192.168.213.44:21101/solr/ 
