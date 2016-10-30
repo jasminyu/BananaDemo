@@ -413,7 +413,7 @@ function (angular, app, _, kbn, moment) {
 			 return true;
  			} else {
  			    if(!(_.isUndefined(response.error))) {
- 			        $scope.panel.erroe = $scope.parse_error(response.error.msg); //There's also results. error.code  
+ 			        $scope.panel.error = $scope.parse_error(response.error.msg); //There's also results. error.code  
  			        return;
  			        }
  			}
