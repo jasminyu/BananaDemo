@@ -119,18 +119,18 @@ function (angular, $, kbn, _, config, moment, Modernizr) {
     // here before telling the panels to refresh
     this.refresh = function() {
       // Retrieve Solr collections for the dashboard
-      kbnIndex.collections(self.current.solr.server).then(function (p) {
-        if (DEBUG) { console.debug('dashboard: kbnIndex.collections p = ',p); }
-        if (p.length > 0) {
-          self.current.solr.core_list = p;
-        } else {
-          // No collections returned from Solr
-          // Display alert only if USE_ADMIN_CORES flag in config.js is true.
-          if (config.USE_ADMIN_CORES) {
-            alertSrv.set('No collections','There were no collections returned from Solr.','info',5000);
-          }
-        }
-      });
+ //     kbnIndex.collections(self.current.solr.server).then(function (p) {
+ //       if (DEBUG) { console.debug('dashboard: kbnIndex.collections p = ',p); }
+ //       if (p.length > 0) {
+ //         self.current.solr.core_list = p;
+ //       } else {
+ //         // No collections returned from Solr
+ //         // Display alert only if USE_ADMIN_CORES flag in config.js is true.
+ //         if (config.USE_ADMIN_CORES) {
+ //           alertSrv.set('No collections','There were no collections returned from Solr.','info',5000);
+ //         }
+ //       }
+ //     });
 
       if(self.current.index.interval !== 'none') {
         if(filterSrv.idsByType('time').length > 0) {

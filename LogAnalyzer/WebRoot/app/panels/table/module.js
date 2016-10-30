@@ -408,8 +408,16 @@ function (angular, app, _, kbn, moment) {
 			var response = request.doSearch();
 
 			response.then(function(response) {
-			 window.location = response.url;
+ 			if (response.url) {
+ 			 window.location = response.url;
 			 return true;
+ 			} else {
+ 			    if(!(_.isUndefined(response.error))) {
+ 			        $scope.panel.erroe = $scope.parse_error(response.error.msg); //There's also results. error.code  
+ 			        return;
+ 			        }
+ 			}
+			
 			});
 		};
 
