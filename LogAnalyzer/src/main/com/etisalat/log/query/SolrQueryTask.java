@@ -133,7 +133,7 @@ public class SolrQueryTask implements Runnable {
                 return;
             }
 
-            logger.info("query {}, numFound {}  QTime {}, cost {} ms", reqUrl, response.getResults().getNumFound(),
+            logger.info("query {} with shardId {} , numFound {}  QTime {}, cost {} ms", reqUrl, shardId, response.getResults().getNumFound(),
                     response.getQTime(), (System.currentTimeMillis() - start));
             fetchResultFromHBase(queryHBaseHandlerFactory, response);
 
@@ -150,7 +150,7 @@ public class SolrQueryTask implements Runnable {
                 LogConfFactory.hbaseBatchMinSize :
                 LogConfFactory.hbaseBatchSize);
 
-        logger.info("get hbase row key with hbase size {}", hbaseSize);
+        logger.debug("get hbase row key with hbase size {}", hbaseSize);
         logger.debug("get hbase row key with result size {}", results.size());
 
         CompletionService<HBaseQueryCursorRsp> completionService = queryHBaseHandlerFactory.newCompletionService();
@@ -159,8 +159,10 @@ public class SolrQueryTask implements Runnable {
         List<Get> gets = new ArrayList<Get>();
         long start = System.currentTimeMillis();
         logger.debug("Query DEBUG results size {} ", results.size());
+        List<String> rowKeyList = new ArrayList<String>();
         for (int i = 0; i < results.size(); i++) {
             String solrKey = ((SolrDocument) results.get(i)).getFieldValue("rowkey").toString();
+            rowKeyList.add(solrKey);
             byte[] rowkey = SolrUtils.exchangeKey(solrKey);
             Get get = new Get(rowkey);
             gets.add(get);
@@ -183,14 +185,14 @@ public class SolrQueryTask implements Runnable {
             hBaseQueryCursorHandler.submit();
         }
 
-        List<JsonObject> jsonObjects = new ArrayList<JsonObject>();
+        Map<String, JsonObject> jsonObjectsMap = new HashMap<String, JsonObject>();
         while (pending.size() > 0) {
             try {
                 Future<HBaseQueryCursorRsp> future = completionService.take();
                 pending.remove(future);
                 HBaseQueryCursorRsp rsp = future.get();
-                if (rsp != null && rsp.getResultJsonObjList() != null && rsp.getResultJsonObjList().size() > 0) {
-                    jsonObjects.addAll(rsp.getResultJsonObjList());
+                if (rsp != null && rsp.getResultJsonObjMap() != null && rsp.getResultJsonObjMap().size() > 0) {
+                    jsonObjectsMap.putAll(rsp.getResultJsonObjMap());
                 }
             } catch (Exception e) {
                 logger.error("hbase data fetch task failed and IOException arised", e);
@@ -198,13 +200,12 @@ public class SolrQueryTask implements Runnable {
             }
         }
 
-        addResultToCache(jsonObjects);
-        logger.debug("Query hbase table {}", collection);
-        logger.debug("Query hbase cost:{} ms", (System.currentTimeMillis() - start));
+        addResultToCache(jsonObjectsMap, rowKeyList);
+        logger.debug("Query hbase table {}, cost:{} ms",collection,(System.currentTimeMillis() - start));
     }
 
-    private void addResultToCache(List<JsonObject> jsonObjects) {
-        if (jsonObjects.size() == 0) {
+    private void addResultToCache(Map<String, JsonObject> jsonObjectsMap, List<String> rowKeyList) {
+        if (jsonObjectsMap.size() == 0) {
             return;
         }
 
@@ -225,13 +226,24 @@ public class SolrQueryTask implements Runnable {
                 QueryBatch.RESULTS_FOR_SHARDS.put(cacheKey, map);
             }
 
+            List<JsonObject> jsonObjects = new ArrayList<JsonObject>();
+            JsonObject jsonObject = null;
+            for(String rowKey : rowKeyList) {
+                jsonObject = jsonObjectsMap.get(rowKey);
+                if(jsonObject == null) {
+                    logger.debug("rowKey: {} does not have the related record.", rowKey);
+                    continue;
+                }
+                jsonObjects.add(jsonObject);
+            }
+
             map.put(shardId, jsonObjects);
 
-            if (qCondition.isSort() && qCondition.isExportOp() && jsonObjects.size() != 0) {
+            if (qCondition.isSort() && qCondition.isExportOp() && jsonObjectsMap.size() != 0) {
                 SortUtils.sortSingleShardRsp(qCondition.getSortedFields(), jsonObjects);
             }
 
-            resultCnt.setFetchNum(resultCnt.getFetchNum() + jsonObjects.size());
+            resultCnt.setFetchNum(resultCnt.getFetchNum() + jsonObjectsMap.size());
         }
     }
 }

@@ -250,7 +250,7 @@ public class LogDispatchFilter implements Filter {
     }
 
     private void handleAdminCoresReq(ServletResponse response) {
-        String path = "admin/collections";
+        String path = "/admin/collections";
         String queryString = "action=LIST&wt=json&omitHeader=true";
 
         logger.info("Start to handleAdminCoresReq");
@@ -430,13 +430,35 @@ public class LogDispatchFilter implements Filter {
         queryBatch.setTotalNum(queryCondition.getTotalNum());
         queryBatch.setWtType(queryCondition.getWtType());
 
+        int actualReturnNum = queryCondition.getTotalReturnNum() > queryCondition.getTotalNum() ?
+                queryCondition.getTotalReturnNum() :
+                queryCondition.getTotalNum();
+
         if (queryCondition.isExportOp()) {
+            if(actualReturnNum > LogConfFactory.exportSizeUseUI) {
+                String errMsg =
+                        "The download results size " + actualReturnNum + " is greater than the limit "
+                                + LogConfFactory.exportSizeUseUI;
+                logger.error(errMsg);
+                SolrUtils.handSelectReqException(errMsg, 509, response);
+                return;
+            }
+
             queryCondition.setDir("export_" + System.currentTimeMillis());
             String localDir = LogConfFactory.exportFilePath + queryCondition.getDir() + File.separator;
             TarGZCompress.createDir(localDir);
             queryCondition.setLocalPath(localDir);
             queryCondition.setTotalReturnNum(queryCondition.getTotalNum());
             logger.info("create download tmp dir {}", localDir);
+        } else {
+            if(actualReturnNum > LogConfFactory.displaySizeUseUI) {
+                String errMsg =
+                        "The display results size " + actualReturnNum + " is greater than the limit "
+                                + LogConfFactory.displaySizeUseUI;
+                logger.error(errMsg);
+                SolrUtils.handSelectReqException(errMsg, 509, response);
+                return;
+            }
         }
 
         String httpRsp = null;

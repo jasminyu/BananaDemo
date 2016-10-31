@@ -298,14 +298,21 @@ public class SolrUtils {
     }
 
     protected static String getNextShardId(String shardId) throws LogQueryException {
-        int id = 0;
-        try {
-            id = Integer.valueOf(shardId.substring("_shard".length()));
-        } catch (RuntimeException e) {
-            String errMsg = "shardId is invalid, it should be like shard+number, such as shard1. But it is " + shardId;
+        return "_shard" + (getIdOfShardId(shardId) + 1);
+    }
+
+    public static Integer compareShardId(String shard, String secondShard) throws LogQueryException {
+        return getIdOfShardId(shard).compareTo(getIdOfShardId(secondShard));
+    }
+
+    public static Integer getIdOfShardId(String shard) throws LogQueryException {
+        try{
+            return Integer.valueOf(shard.substring("_shard".length()));
+        }catch(RuntimeException e) {
+            String errMsg = "shardId is invalid, it should be like shard+number, such as shard1, But it is " + shard;
+            logger.error(errMsg);
             throw new LogQueryException(errMsg);
         }
-        return "_shard" + (id + 1);
     }
 
     protected static String getCollWithShardId(String collection, String shardId) {

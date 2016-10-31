@@ -4,21 +4,21 @@ import com.google.gson.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+import java.util.Map;
 
 public class HBaseQueryCursorRsp {
     protected static final Logger logger = LoggerFactory.getLogger(HBaseQueryCursorRsp.class);
-    private List<JsonObject> resultJsonObjList = null;
+    private Map<String, JsonObject> resultJsonObjMap = null;
 
-    public HBaseQueryCursorRsp(List<JsonObject> resultJsonObjList) {
-        this.resultJsonObjList = resultJsonObjList;
+    public HBaseQueryCursorRsp(Map<String, JsonObject> resultJsonObjMap) {
+        this.resultJsonObjMap = resultJsonObjMap;
     }
 
-    public List<JsonObject> getResultJsonObjList() {
-        return resultJsonObjList;
+    public Map<String, JsonObject> getResultJsonObjMap() {
+        return resultJsonObjMap;
     }
 
-    public void setResultJsonObjList(List<JsonObject> resultJsonObjList) {
-        this.resultJsonObjList = resultJsonObjList;
+    public void setResultJsonObjMap(Map<String, JsonObject> resultJsonObjMap) {
+        this.resultJsonObjMap = resultJsonObjMap;
     }
 }

@@ -59,6 +59,7 @@ public class LogConstants {
     public static final String SOLR_MIN_SHARD_ID = "solr.min.shard.id";
 
     public static final String QUERY_TIMEOUT_SECOND = "query.timeout.second";
+    public static final String QUERY_WAITTIME_SECOND = "query.first.wait.time.second";
     public static final String QUERY_RESULT_CHECK_INTERVAL_SECOND = "query.result.check.interval.second";
 
     public static final String SOLR_QUERY_RSP_JSON = "solr.query.response.json";
@@ -89,6 +90,7 @@ public class LogConstants {
     public static final String HBASE_QUERY_POOL_MAX_SIZE = "hbase.thread.pool.max.size";
     public static final String HBASE_QUERY_POOL_QUEUE_SIZE = "hbase.thread.pool.queue.size";
 
+    public static final String DISPLAY_MAX_NUM_USE_UI = "display.max.num.use.ui";
     public static final String EXPORT_FILE_PATH = "export.file.path";
     public static final String EXPORT_FILE_MAX_NUM_USE_UI = "export.file.max.num.use.ui";
     public static final String ENABLE_CLEAN_EXPORTED = "clean.export.enable";

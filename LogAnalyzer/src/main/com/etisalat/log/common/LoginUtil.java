@@ -173,7 +173,7 @@ public class LoginUtil {
             builder.append("principal=\"" + userPrincipal + "\"").append(LogConfFactory.lineSeparator);
             builder.append("useTicketCache=false").append(LogConfFactory.lineSeparator);
             builder.append("storeKey=true").append(LogConfFactory.lineSeparator);
-            builder.append("debug=true;").append(LogConfFactory.lineSeparator);
+            builder.append("debug=false;").append(LogConfFactory.lineSeparator);
             builder.append("};").append(LogConfFactory.lineSeparator);
         }
 

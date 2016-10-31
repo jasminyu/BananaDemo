@@ -11,9 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.Future;
@@ -88,20 +86,20 @@ public class HBaseQueryCursorHandler {
                 try {
                     Result[] results = table.get(gets);
 
-                    List<JsonObject> resultJsonObjList = new ArrayList<JsonObject>();
+                    Map<String, JsonObject> resultJsonObjMap = new HashMap<String, JsonObject>();
 
                     if (results == null) {
-                        return new HBaseQueryCursorRsp(resultJsonObjList);
+                        return new HBaseQueryCursorRsp(resultJsonObjMap);
                     }
 
-                    HBaseQueryCursorRsp hbaseQueryRsp = new HBaseQueryCursorRsp(resultJsonObjList);
-                    addResultToJsonList(resultJsonObjList, results);
+                    HBaseQueryCursorRsp hbaseQueryRsp = new HBaseQueryCursorRsp(resultJsonObjMap);
+                    addResultToJsonMap(resultJsonObjMap, results);
                     logger.info("query hbase table {}, with batch size {}, cost {} ms", tableName, gets.size(),
                             (System.currentTimeMillis() - start));
                     return hbaseQueryRsp;
                 } catch (IOException e) {
                     logger.error("hbase data fetch task failed and IOException arised", e);
-                    return new HBaseQueryCursorRsp(new ArrayList<JsonObject>());
+                    return new HBaseQueryCursorRsp(new HashMap<String, JsonObject>());
                 } finally {
                     try {
                         table.close();
@@ -116,7 +114,7 @@ public class HBaseQueryCursorHandler {
         pending.add(completionService.submit(task));
     }
 
-    private void addResultToJsonList(List<JsonObject> jsonObjects, Result[] results) {
+    private void addResultToJsonMap(Map<String, JsonObject> jsonObjectMap, Result[] results) {
         JsonObject jsonObj = null;
         for (int i = 0; i < results.length; ++i) {
             Result result = results[i];
@@ -139,7 +137,7 @@ public class HBaseQueryCursorHandler {
                         LogConfFactory.columnQualifiersBytesMap.get(qualifier)));
             }
 
-            jsonObjects.add(jsonObj);
+            jsonObjectMap.put(rowKey, jsonObj);
         }
     }
 }

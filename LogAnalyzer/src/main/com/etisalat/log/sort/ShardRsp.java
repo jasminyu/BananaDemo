@@ -153,18 +153,3 @@ class ShardSortedQueue extends PriorityQueue<ShardRsp> {
     }
 
 }
-
-class JsonObjSortedQueue extends PriorityQueue<JsonObject> {
-    protected List<SortField> fields;
-
-    public JsonObjSortedQueue(int maxSize) {
-        super(maxSize);
-    }
-
-    @Override
-    protected boolean lessThan(JsonObject a, JsonObject b) {
-        return false;
-    }
-
-}
-

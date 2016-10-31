@@ -73,6 +73,7 @@ public class LogConfFactory {
     public static final String solrMinShardId;
     public static final JsonObject solrQueryRspJsonObj;
     public static final long queryTimeout;
+    public static final long queryFirstWaitTime;
     public static final long queryResultCheckInterval;
     public static final String solrServerUrl;
     public static final String zkHost;
@@ -91,6 +92,7 @@ public class LogConfFactory {
     public static final int hbaseBatchMinSize;
     public static final String exportFilePath;
     public static final int exportSizeUseUI;
+    public static final int displaySizeUseUI;
     public static final boolean enableCleanExported;
     public static final long exportedCleanTimeInterval;
     public static final long exportedCleanSleepTime;
@@ -233,7 +235,8 @@ public class LogConfFactory {
         solrMinShardId = LogConfFactory.getString(LogConstants.SOLR_MIN_SHARD_ID, "_shard1");
 
         queryTimeout = LogConfFactory.getLong(LogConstants.QUERY_TIMEOUT_SECOND, 4l * 60) * 1000;
-        queryResultCheckInterval = LogConfFactory.getLong(LogConstants.QUERY_RESULT_CHECK_INTERVAL_SECOND, 1l * 1000);
+        queryFirstWaitTime = LogConfFactory.getLong(LogConstants.QUERY_WAITTIME_SECOND, 5l) * 1000;
+        queryResultCheckInterval = LogConfFactory.getLong(LogConstants.QUERY_RESULT_CHECK_INTERVAL_SECOND, 3l) * 1000;
 
         solrQueryRspJsonObj = JsonUtil.fromJson(LogConfFactory.getString(LogConstants.SOLR_QUERY_RSP_JSON,
                         "{\"responseHeader\":{\"status\":0,\"QTime\":0,\"params\":{\"q\":\"*:*\",\"rows\":\"0\",\"wt\":\"json\"}},\"response\":{\"numFound\":0,\"start\":0,\"docs\":[]}}"),
@@ -265,8 +268,9 @@ public class LogConfFactory {
         hbasePoolMaxSize = LogConfFactory.getInt(LogConstants.HBASE_QUERY_POOL_MAX_SIZE, Integer.MAX_VALUE);
         hbaseQueueSize = LogConfFactory.getInt(LogConstants.HBASE_QUERY_POOL_QUEUE_SIZE, 1000);
 
+        displaySizeUseUI = LogConfFactory.getInt(LogConstants.DISPLAY_MAX_NUM_USE_UI, 200 * 1000);
         exportFilePath = System.getProperty(LogConstants.EXPORT_FILE_PATH) + File.separator;
-        exportSizeUseUI = LogConfFactory.getInt(LogConstants.EXPORT_FILE_MAX_NUM_USE_UI, 200 * 1000);
+        exportSizeUseUI = LogConfFactory.getInt(LogConstants.EXPORT_FILE_MAX_NUM_USE_UI, 300 * 10000);
         enableCleanExported = LogConfFactory.getBoolean(LogConstants.ENABLE_CLEAN_EXPORTED, false);
         exportedCleanTimeInterval = LogConfFactory
                 .getLong(LogConstants.EXPORTED_FILE_CLEAN_INTERVAL_MS, 24 * 60 * 60 * 1000);
@@ -307,6 +311,7 @@ public class LogConfFactory {
         logger.info("{}={}", LogConstants.SOLR_MIN_SHARD_ID, solrMinShardId);
         logger.info("{}={}", LogConstants.SOLR_QUERY_MAX_SPAN, solrQueryMaxSpan);
         logger.info("{}={}", LogConstants.QUERY_TIMEOUT_SECOND, queryTimeout / 1000);
+        logger.info("{}={}", LogConstants.QUERY_WAITTIME_SECOND, queryFirstWaitTime / 1000);
         logger.info("{}={}", LogConstants.QUERY_RESULT_CHECK_INTERVAL_SECOND, queryResultCheckInterval / 1000);
         logger.info("{}={}", LogConstants.SOLR_QUERY_RSP_JSON, solrQueryRspJsonObj.toString());
 
@@ -333,6 +338,7 @@ public class LogConfFactory {
         logger.info("{}={}", LogConstants.HBASE_QUERY_POOL_MAX_SIZE, hbasePoolMaxSize);
         logger.info("{}={}", LogConstants.HBASE_QUERY_POOL_QUEUE_SIZE, hbaseQueueSize);
 
+        logger.info("{}={}", LogConstants.DISPLAY_MAX_NUM_USE_UI, displaySizeUseUI);
         logger.info("{}={}", LogConstants.EXPORT_FILE_MAX_NUM_USE_UI, exportSizeUseUI);
         logger.info("{}={}", LogConstants.ENABLE_CLEAN_EXPORTED, enableCleanExported);
         logger.info("{}={}", LogConstants.EXPORTED_FILE_CLEAN_INTERVAL_MS, exportedCleanTimeInterval);

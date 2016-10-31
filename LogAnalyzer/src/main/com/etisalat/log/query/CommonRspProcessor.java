@@ -128,6 +128,7 @@ public class CommonRspProcessor implements RspProcess {
         for (String rowKey : rowKeyList) {
             jsonObj = rspResults.get(rowKey);
             if (jsonObj == null) {
+                logger.debug("rowKey: {} does not have related record.", rowKey);
                 continue;
             }
             docNum++;
@@ -164,6 +165,7 @@ public class CommonRspProcessor implements RspProcess {
             for (String rowKey : rowKeyList) {
                 jsonObj = rspResults.get(rowKey);
                 if (jsonObj == null) {
+                    logger.debug("rowKey: {} does not have related record.", rowKey);
                     continue;
                 }
                 docNum++;
@@ -205,6 +207,7 @@ public class CommonRspProcessor implements RspProcess {
         for (String rowKey : rowKeyList) {
             jsonObj = rspResults.get(rowKey);
             if (jsonObj == null) {
+                logger.debug("rowKey: {} does not have related record.", rowKey);
                 continue;
             }
             docNum++;

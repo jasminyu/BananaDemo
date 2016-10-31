@@ -192,7 +192,7 @@ public class QueryParser {
         }
 
         String uniqueKeySort = null;
-        if (queryCondition.getTotalNum() > LogConfFactory.exportSizeUseUI || LogConfFactory.enablePaging) {
+        if (queryCondition.getTotalNum() >= LogConfFactory.displaySizeUseUI || LogConfFactory.enablePaging) {
             queryCondition.setNeedUseCursor(true);
             if (queryCondition.isUniqueKeySort()) {
                 uniqueKeySort = sortStrList.get(uniqueKeySortStrIdx);
