@@ -32,10 +32,11 @@ public class CursorRspProcessor implements RspProcess {
         this.cursor = cursor;
         this.queryCondition = queryCondition;
         this.realReturnNum = realReturnNum;
-        this.singleFileSize = SolrUtils.getSingleFileRecordNum(realReturnNum);;
+        this.singleFileSize = SolrUtils.getSingleFileRecordNum(realReturnNum);
     }
 
-    public CursorRspProcessor(QueryCondition queryCondition, Cursor cursor, long realReturnNum, Set<String> maxCollShardSet) {
+    public CursorRspProcessor(QueryCondition queryCondition, Cursor cursor, long realReturnNum,
+                              Set<String> maxCollShardSet) {
         this(queryCondition, cursor, realReturnNum);
         this.maxCollShardSet = maxCollShardSet;
         setMaxCollection();
@@ -44,10 +45,11 @@ public class CursorRspProcessor implements RspProcess {
     private void setMaxCollection(){
         List<String> collections = new ArrayList<String>();
         for(String collWithShard : maxCollShardSet) {
-            collections.add(collWithShard);
+            collections.add(SolrUtils.getCollection(collWithShard));
         }
+
         Collections.sort(collections);
-        this.maxCollection = collections.get(collections.size()-1);
+        this.maxCollection = collections.get(collections.size() - 1);
     }
 
     @Override
@@ -64,6 +66,7 @@ public class CursorRspProcessor implements RspProcess {
         String cacheKey = cursor.getCacheKey();
         long waitStart = System.currentTimeMillis();
         ResultCnt resultCnt = null;
+
         try{
             Thread.sleep(LogConfFactory.queryFirstWaitTime);
         }catch(InterruptedException e){
@@ -479,11 +482,11 @@ public class CursorRspProcessor implements RspProcess {
             collWithShardId = SolrUtils.getCollWithShardId(collection, cursor.getShardId());
             idx = cursor.getFetchIdx();
 
-            logger.debug("getres {}. {}, {}",collection, collWithShardId, idx);
+            logger.debug("getres {}, {}, {}",collection, collWithShardId, idx);
             jsonObjectList = resultMap.get(collWithShardId);
 
             if (jsonObjectList == null) {
-                if (collection.equals(maxCollection)) {
+                if (collection.equals(maxCollection) && maxCollShardSet.contains(LogConfFactory.hbasePoolMaxSize)) {
                     break;
                 }
 
@@ -512,7 +515,7 @@ public class CursorRspProcessor implements RspProcess {
 
         rspJsonObj.add("docs", resultJsonObjArray);
         rspJsonObj.addProperty("nums", realReturnNum);
-        rspJsonObj.addProperty("nextCursorMark", (rows > realReturnNum ? "" : cursor.toString()));
+        rspJsonObj.addProperty("nextCursorMark", (rows > realReturnNum) ? "" : cursor.toString());
 
         return JsonUtil.toJson(resultJsonObj);
     }
@@ -529,7 +532,7 @@ public class CursorRspProcessor implements RspProcess {
 
     private void updateCursor(Cursor cursor, String collection, String collWithShardId, int idx, int jsonListSize)
             throws LogQueryException {
-        logger.debug("cursor {}. {},{}",cursor.toString(), collection, collWithShardId);
+        logger.debug("cursor {}, {},{}",cursor.toString(), collection, collWithShardId);
         if (idx >= jsonListSize) {
             cursor.setFetchIdx(0);
             if (maxCollShardSet.contains(collWithShardId)) {

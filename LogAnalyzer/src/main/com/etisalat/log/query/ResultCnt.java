@@ -20,6 +20,7 @@ public class ResultCnt {
         this.fetchNum = fetchNum;
         this.totalNum = totalNum;
     }
+
     public long getFetchNum() {
         return fetchNum;
     }
@@ -74,7 +75,7 @@ public class ResultCnt {
             return res;
         }
 
-        res = (this.totalNum < resultCnt.getTotalNum()) ? -1 : ((this.totalNum == resultCnt.getTotalNum()) ? 0 : -1);
+        res = (this.totalNum < resultCnt.getTotalNum()) ? -1 : ((this.totalNum == resultCnt.getTotalNum()) ? 0 : 1);
         if(res != 0) {
             return res;
         }

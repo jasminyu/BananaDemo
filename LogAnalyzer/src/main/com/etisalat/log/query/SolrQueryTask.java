@@ -201,7 +201,7 @@ public class SolrQueryTask implements Runnable {
         }
 
         addResultToCache(jsonObjectsMap, rowKeyList);
-        logger.debug("Query hbase table {}, cost:{} ms",collection,(System.currentTimeMillis() - start));
+        logger.debug("Query hbase table {}, cost:{} ms", collection, (System.currentTimeMillis() - start));
     }
 
     private void addResultToCache(Map<String, JsonObject> jsonObjectsMap, List<String> rowKeyList) {
@@ -239,7 +239,7 @@ public class SolrQueryTask implements Runnable {
 
             map.put(shardId, jsonObjects);
 
-            if (qCondition.isSort() && qCondition.isExportOp() && jsonObjectsMap.size() != 0) {
+            if (qCondition.isSort() && qCondition.isExportOp() && jsonObjects.size() != 0) {
                 SortUtils.sortSingleShardRsp(qCondition.getSortedFields(), jsonObjects);
             }
 
