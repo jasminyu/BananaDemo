@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.*;
-import java.util.concurrent.ThreadFactory;
 
 public class CursorRspProcessor implements RspProcess {
     protected static final Logger logger = LoggerFactory.getLogger(CursorRspProcessor.class);
@@ -486,7 +485,7 @@ public class CursorRspProcessor implements RspProcess {
             jsonObjectList = resultMap.get(collWithShardId);
 
             if (jsonObjectList == null) {
-                if (collection.equals(maxCollection) && maxCollShardSet.contains(LogConfFactory.hbasePoolMaxSize)) {
+                if (collection.equals(maxCollection) && maxCollShardSet.contains(LogConfFactory.solrMaxShardId)) {
                     break;
                 }
 
