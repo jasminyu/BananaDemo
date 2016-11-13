@@ -41,7 +41,7 @@ public class CleanDownloadThread implements Runnable {
         for (int i = 0; i < files.length; i++) {
             file = files[i];
             if (isExporttedFile(file, nowTimestamp, timeInterval)) {
-                if (deleteFile(getCanonicalPath(files[i]))) {
+                if (!deleteFile(getCanonicalPath(files[i]))) {
                     LOG.warn("failed to delete file {}", getCanonicalPath(file));
                 }
 

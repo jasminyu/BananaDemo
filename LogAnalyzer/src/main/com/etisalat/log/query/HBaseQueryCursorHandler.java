@@ -18,24 +18,29 @@ import java.util.concurrent.Future;
 
 public class HBaseQueryCursorHandler {
     private static Logger logger = LoggerFactory.getLogger(HBaseQueryCursorHandler.class);
-    private String tableName;
+  
     private Table table;
+
+    private String cacheKey;
+    private String collWithShard;
 
     private List<Get> gets;
 
     private CompletionService<HBaseQueryCursorRsp> completionService;
     private Set<Future<HBaseQueryCursorRsp>> pending;
 
-    public HBaseQueryCursorHandler(String tableName) {
+    public HBaseQueryCursorHandler(String tableName, String cacheKey, String collWithShard) {
         AssertUtil.noneNull("HBaseQueryCursorHandler construct should not null", tableName);
 
-        this.tableName = tableName;
         try {
             this.table = HBaseQueryHandlerFactory.connection.getTable(TableName.valueOf(tableName));
         } catch (IOException e) {
-            logger.error("Get Table and IOException arised.", e);
+            logger.error("Query session {}, query {}, Get Table and IOException arised.", cacheKey, collWithShard, e);
             return;
         }
+
+        this.cacheKey = cacheKey;
+        this.collWithShard = collWithShard;
     }
 
     public CompletionService<HBaseQueryCursorRsp> getCompletionService() {
@@ -72,14 +77,14 @@ public class HBaseQueryCursorHandler {
 
     public void submit() {
         if (gets == null || gets.isEmpty()) {
-            logger.info("Gets is Empty and end.");
+            logger.info("Query session {}, query {}, gets is empty and end.", cacheKey, collWithShard);
             return;
         }
 
         Callable<HBaseQueryCursorRsp> task = new Callable<HBaseQueryCursorRsp>() {
             @Override
-            public HBaseQueryCursorRsp call() throws Exception {
-                logger.debug("HBase data fetch task start");
+            public HBaseQueryCursorRsp call()  {
+                logger.info("Query session {}, query {}, hbase data fetch {} gets task start", cacheKey, collWithShard, gets.size());
 
                 long start = System.currentTimeMillis();
 
@@ -94,18 +99,18 @@ public class HBaseQueryCursorHandler {
 
                     HBaseQueryCursorRsp hbaseQueryRsp = new HBaseQueryCursorRsp(resultJsonObjMap);
                     addResultToJsonMap(resultJsonObjMap, results);
-                    logger.info("query hbase table {}, with batch size {}, cost {} ms", tableName, gets.size(),
+                    logger.info("Query session {}, query {}, with batch size {}, cost {} ms", cacheKey, collWithShard, gets.size(),
                             (System.currentTimeMillis() - start));
                     return hbaseQueryRsp;
-                } catch (IOException e) {
-                    logger.error("hbase data fetch task failed and IOException arised", e);
+                } catch (Exception e) {
+                    logger.error("Query session {}, query {}, hbase data fetch task failed and IOException arised", cacheKey, collWithShard, e);
                     return new HBaseQueryCursorRsp(new HashMap<String, JsonObject>());
                 } finally {
                     try {
                         table.close();
                     } catch (IOException e) {
                         logger.error(e.getMessage());
-                        logger.warn("Table close and IOException arised");
+                        logger.warn("Query session {}, query {}, table close and IOException arised", cacheKey, collWithShard);
                     }
                 }
             }
@@ -119,13 +124,13 @@ public class HBaseQueryCursorHandler {
         for (int i = 0; i < results.length; ++i) {
             Result result = results[i];
             if (null == result.getRow()) {
-                logger.debug("result.getRow() is null, this can ignore.");
+                logger.debug("Query session {}, query {}, result.getRow() is null, this can ignore.", cacheKey, collWithShard);
                 continue;
             }
 
             String rowKey = SolrUtils.getSolrKey(result.getRow());
             if (null == rowKey) {
-                logger.error("rowkey is null!");
+                logger.debug("Query session {}, query {}, rowkey is null!", cacheKey, collWithShard);
                 continue;
             }
 

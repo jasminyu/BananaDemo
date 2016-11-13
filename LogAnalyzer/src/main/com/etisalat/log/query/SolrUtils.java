@@ -28,11 +28,14 @@ import javax.xml.bind.Unmarshaller;
 import java.io.*;
 import java.text.ParseException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class SolrUtils {
     private static final Logger logger = LoggerFactory.getLogger(SpnegoService.class);
     private static final char[] HEX = "0123456789ABCDEF".toCharArray();
     private static final Random random = new Random(formatSeed(new Random().nextLong()).hashCode());
+
+    private static AtomicLong cacheKey = new AtomicLong(System.currentTimeMillis());
 
     public static CloudSolrClient getSolrClient() throws Exception {
         ModifiableSolrParams params = new ModifiableSolrParams();
@@ -62,6 +65,10 @@ public class SolrUtils {
                 .murmurhash3_x86_32(timestamp, 0, timestamp.length(), 0);
     }
 
+    protected static String generateCacheKey2() {
+        return String.valueOf(cacheKey.addAndGet(1l));
+    }
+
     private static <T> T deepCopy(T object, Class<T> type) {
         try {
             Gson gson = new Gson();
@@ -81,16 +88,7 @@ public class SolrUtils {
             return;
         }
 
-        JsonObject rspJson = new JsonObject();
-        JsonObject errorJson = new JsonObject();
-        JsonObject responseJson = new JsonObject();
-
-        responseJson.addProperty("numFound", 0);
-        rspJson.add("response", responseJson);
-
-        errorJson.addProperty("msg", msg);
-        errorJson.addProperty("code", msgCode);
-        rspJson.add("error", errorJson);
+        JsonObject rspJson = getErrJsonObj(msg, msgCode);
 
         PrintWriter out;
         try {
@@ -104,6 +102,22 @@ public class SolrUtils {
         }
 
         return;
+    }
+    
+    public static JsonObject getErrJsonObj(String msg, int msgCode) {
+    	
+    	JsonObject rspJson = new JsonObject();
+    	JsonObject errorJson =new JsonObject();
+    	JsonObject responseJson =new JsonObject();
+    	
+    	responseJson.addProperty("numFound", 0);
+    	rspJson.add("response", responseJson);
+    	
+    	errorJson.addProperty("msg", msg);
+    	errorJson.addProperty("code", msgCode);
+    	rspJson.add("error", errorJson);
+    	
+    	return rspJson;
     }
 
     private static String formatSeed(long seed) {

@@ -1,6 +1,7 @@
 package com.etisalat.log.sort;
 
 import com.etisalat.log.config.LogConfFactory;
+import com.etisalat.log.query.ResultCnt;
 import com.google.gson.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,7 +15,43 @@ public class SortTest {
         logger.info("-------------------------------");
         LogConfFactory.init();
         logger.info("-------------------------------");
+        testSortResultFound();
+    }
 
+    public static void print(Map<ResultCnt, String> reqUrlMap) {
+        Set<Map.Entry<ResultCnt, String>> entrySet = reqUrlMap.entrySet();
+        int i = 1;
+        for (Map.Entry<ResultCnt, String> entry : entrySet) {
+            logger.warn("xxx {}, url: {}, numFound: {}", i++, entry.getValue(), entry.getKey().toString());
+        }
+    }
+
+    private static void testSortResultFound() {
+        Map<ResultCnt, String> reqUrlMap = new TreeMap<ResultCnt, String>(new Comparator<ResultCnt>() {
+            @Override
+            public int compare(ResultCnt o1, ResultCnt o2) {
+                return o1.compareTo(o2);
+            }
+        });
+
+        reqUrlMap.put(new ResultCnt("tb_20101021_shard23", 12), "xxx");
+        reqUrlMap.put(new ResultCnt("tb_20101021_shard4", 12), "xxx");
+        reqUrlMap.put(new ResultCnt("tb_20101022_shard34", 23), "xxx");
+        reqUrlMap.put(new ResultCnt("tb_20101022_shard15", 62), "xxx");
+        reqUrlMap.put(new ResultCnt("tb_20101021_shard43", 23), "xxx");
+        reqUrlMap.put(new ResultCnt("tb_20101021_shard2", 10), "xxx");
+        reqUrlMap.put(new ResultCnt("tb_20101022_shard2", 12), "xxx");
+        reqUrlMap.put(new ResultCnt("tb_20101022_shard3", 23), "xxx");
+        reqUrlMap.put(new ResultCnt("tb_20101022_shard12", 32), "xxx");
+        reqUrlMap.put(new ResultCnt("tb_20101022_shard15", 62), "xxx");
+
+        Set<ResultCnt> set = reqUrlMap.keySet();
+        for (ResultCnt resultCnt : set) {
+            System.out.println(resultCnt);
+        }
+    }
+
+    private static void testSort() {
         Map<String, List<JsonObject>> shardResults = new HashMap<String, List<JsonObject>>();
         List<SortField> fields = new ArrayList<SortField>();
         fields.add(new SortField("timestamp", true, SortField.Type.long_n));
@@ -27,8 +64,8 @@ public class SortTest {
 
         List<JsonObject> res = SortUtils.sort(shardResults, fields, 10, "rowkey");
         for (JsonObject rs : res) {
-        	System.out.println(rs.toString());
-        } 
+            System.out.println(rs.toString());
+        }
     }
 
     private static List<JsonObject> getJsonObjList(List<SortField> fields, int size, Map<String, JsonObject> map) {

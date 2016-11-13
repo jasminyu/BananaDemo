@@ -34,7 +34,6 @@ public class HBaseQueryHandler {
             this.table = HBaseQueryHandlerFactory.connection.getTable(TableName.valueOf(tableName));
         } catch (IOException e) {
             logger.error("Get Table and IOException arised.", e);
-            // TODO YU does it need to process?
             return;
         }
     }

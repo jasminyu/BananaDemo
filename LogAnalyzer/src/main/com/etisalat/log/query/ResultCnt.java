@@ -8,7 +8,7 @@ public class ResultCnt {
     private String collWithShardId;
     private long fetchNum;
     private long totalNum;
-    
+
     private Set<String> maxCollWithShardSets = null;
 
     public ResultCnt(String collWithShardId, long totalNum) {
@@ -53,7 +53,6 @@ public class ResultCnt {
         this.maxCollWithShardSets = maxCollWithShardSets;
     }
 
-
     @Override
     public String toString() {
         return "ResultCnt{" +
@@ -63,7 +62,7 @@ public class ResultCnt {
     }
 
     public int compareTo(ResultCnt resultCnt) {
-        if(resultCnt == null) {
+        if (resultCnt == null) {
             return -1;
         }
 
@@ -71,21 +70,20 @@ public class ResultCnt {
         String secondColl = SolrUtils.getCollection(resultCnt.getCollWithShardId());
 
         int res = firstColl.compareTo(secondColl);
-        if(res != 0) {
+        if (res != 0) {
             return res;
         }
 
         res = (this.totalNum < resultCnt.getTotalNum()) ? -1 : ((this.totalNum == resultCnt.getTotalNum()) ? 0 : 1);
-        if(res != 0) {
+        if (res != 0) {
             return res;
         }
 
         String secondShardId = SolrUtils.getShardId(resultCnt.getCollWithShardId());
-        String shardId =  SolrUtils.getShardId(this.getCollWithShardId());
-
-        try{
-            return  SolrUtils.compareShardId(shardId, secondShardId);
-        }catch (LogQueryException e) {
+        String shardId = SolrUtils.getShardId(this.getCollWithShardId());
+        try {
+            return SolrUtils.compareShardId(shardId, secondShardId);
+        } catch (LogQueryException e) {
             return 0;
         }
     }

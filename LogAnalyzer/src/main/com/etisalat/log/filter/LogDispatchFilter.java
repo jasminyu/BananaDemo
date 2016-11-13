@@ -410,6 +410,8 @@ public class LogDispatchFilter implements Filter {
         logger.debug("path : {}.", path);
         logger.debug("Original queryString : {}.", queryCondition.getQueryString());
 
+        long queryStart = System.currentTimeMillis();
+
         String collectionName = null;
         if (path.contains("_shard")) {
             collectionName = path.substring(1, path.indexOf("_shard"));
@@ -500,14 +502,12 @@ public class LogDispatchFilter implements Filter {
         /************************************************************/
         PrintWriter out;
         out = response.getWriter();
-        long start = System.currentTimeMillis();
         out.print(httpRsp);
         response.setContentType("text/plain; charset=UTF-8");
         out.flush();
         out.close();
 
-        logger.warn("PrintWriter Write response took {} ms", System.currentTimeMillis() - start);
-        logger.info("End to handleSelectReqWithRows");
+        logger.info("End to handleSelectReqWithRows cost {}ms", System.currentTimeMillis() - queryStart);
     }
 
     @Override

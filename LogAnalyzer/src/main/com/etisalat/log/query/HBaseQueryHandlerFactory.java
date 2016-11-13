@@ -41,8 +41,8 @@ public class HBaseQueryHandlerFactory {
         return new HBaseQueryHandler(tableName, queryCondition);
     }
 
-    public static HBaseQueryCursorHandler getQueryHBaseCursorHandler(String tableName) {
-        return new HBaseQueryCursorHandler(tableName);
+    public static HBaseQueryCursorHandler getQueryHBaseCursorHandler(String tableName, String cacheKey, String collWithShardId) {
+        return new HBaseQueryCursorHandler(tableName, cacheKey, collWithShardId);
     }
 
     public CompletionService newCompletionService() {

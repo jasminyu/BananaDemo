@@ -29,10 +29,11 @@ import java.net.URLDecoder;
 import java.text.ParseException;
 import java.util.*;
 import java.util.concurrent.CompletionService;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
 public class QueryBatch {
-    public static final LRUCache<String, Map<String, List<JsonObject>>> RESULTS_FOR_SHARDS = new LRUCache<String, Map<String, List<JsonObject>>>();
+    public static final LRUCache<String, ConcurrentHashMap<String, List<JsonObject>>> RESULTS_FOR_SHARDS = new LRUCache<String, ConcurrentHashMap<String, List<JsonObject>>>();
     public static final LRUCache<String, ResultCnt> RESULTS_CNT_FOR_SHARDS = new LRUCache<String, ResultCnt>();
     public static final LRUCache<String, String> LRU_CACHE = new LRUCache<String, String>();
     public static final LRUCache<String, CacheQueryResTaskInfo> LRU_TASK_CACHE = new LRUCache<String, CacheQueryResTaskInfo>();
@@ -67,10 +68,14 @@ public class QueryBatch {
             return false;
         }
 
-        RESULTS_FOR_SHARDS.init();
-        RESULTS_CNT_FOR_SHARDS.init();
-        LRU_CACHE.init();
-        LRU_TASK_CACHE.init();
+        if (LogConfFactory.queryPerShard) {
+            RESULTS_FOR_SHARDS.init();
+            RESULTS_CNT_FOR_SHARDS.init();
+        }
+        if (!LogConfFactory.queryPerShard && LogConfFactory.enablePaging) {
+            LRU_CACHE.init();
+            LRU_TASK_CACHE.init();
+        }
 
         return true;
     }
@@ -630,9 +635,9 @@ public class QueryBatch {
             HBaseQueryHandlerFactory hbaseQueryHandlerFactory) throws LogQueryException {
         Cursor cursor = queryCondition.getNextCursor();
         if (cursor == null) {
-            cursor = new Cursor(SolrUtils.generateCacheKey(), queryCondition.getCollections().get(0),
-                    //                    SolrUtils.getCollWithShardId(queryCondition.getCollections().get(0), LogConfFactory.solrMinShardId),
+            cursor = new Cursor(SolrUtils.generateCacheKey2(), queryCondition.getCollections().get(0),
                     LogConfFactory.solrMinShardId, 0);
+            logger.info("Start to queryPerShards with query session {}", cursor.getCacheKey());
             queryPerShards(cursor, solrHandlerFactory, hbaseQueryHandlerFactory);
             if (!queryCondition.isExportOp() && getRealReturnNum() == 0) {
                 return JsonUtil.toJson(LogConfFactory.solrQueryRspJsonObj);
@@ -641,13 +646,13 @@ public class QueryBatch {
 
         ResultCnt resultCnt = RESULTS_CNT_FOR_SHARDS.get(cursor.getCacheKey());
         CursorRspProcessor rspProcessor = new CursorRspProcessor(queryCondition, cursor,
-                resultCnt.getTotalNum(), resultCnt.getMaxCollWithShardSets());
+               resultCnt.getTotalNum(), resultCnt.getMaxCollWithShardSets());
         return rspProcessor.process();
     }
 
     private void queryPerShards(Cursor cursor, SolrQueryHandlerFactory solrHandlerFactory,
             HBaseQueryHandlerFactory queryHBaseHandlerFactory) throws LogQueryException {
-        logger.info("Start to queryPerShards");
+        logger.info("Start to queryPerShards with query session {}", cursor.getCacheKey());
 
         long start = System.currentTimeMillis();
 
@@ -663,7 +668,7 @@ public class QueryBatch {
         long totalNumFound = 0;
         StringBuilder builder = new StringBuilder();
         for (String collection : collections) {
-            totalNumFound = totalNumFound + getTotalNumFound(solrHandlerFactory, qString, collection, reqUrlMap);
+            totalNumFound = totalNumFound + getTotalNumFound(solrHandlerFactory, qString, collection, reqUrlMap, cursor.getCacheKey());
             builder.append(",").append(collection);
             if (totalNumFound >= queryCondition.getTotalReturnNum()) {
                 break;
@@ -678,8 +683,8 @@ public class QueryBatch {
             return;
         }
 
-        logger.info("Solr query string {} on collection {}", qString, builder.delete(0, 1).toString());
-        logger.info("Actual total return num {}", realReturnNum);
+        logger.info("Query session {}, solr query string {} on collection {}", cursor.getCacheKey(), qString, builder.delete(0, 1).toString());
+        logger.info("Query session {}, actual total return num {}", cursor.getCacheKey(), realReturnNum);
 
         RESULTS_CNT_FOR_SHARDS.put(cursor.getCacheKey(), new ResultCnt(0, this.realReturnNum));
 
@@ -697,17 +702,17 @@ public class QueryBatch {
             querySolrTask = new SolrQueryTask(qString, entry.getValue());
             querySolrTask.setCacheKey(cursor.getCacheKey());
             coll = SolrUtils.getCollection(resultCnt.getCollWithShardId());
-            idx++;
-            if(!coll.equals(lastColl)) {
+            idx ++;
+            if (!coll.equals(lastColl)) {
                 idx = 1;
                 querySolrTask.setShardId(SolrUtils.getCollWithShardId(coll, "_shard" + idx));
                 querySolrTask.setCollection(coll);
-                if(lastColl != null) {
+                if (lastColl != null) {
                     maxCollWithShardSets.add(lastShard);
                 }
                 lastColl = coll;
             } else {
-                querySolrTask.setShardId(SolrUtils.getCollWithShardId(coll,  "_shard" + idx));
+                querySolrTask.setShardId(SolrUtils.getCollWithShardId(coll, "_shard" + idx));
                 querySolrTask.setCollection(coll);
             }
 
@@ -725,12 +730,12 @@ public class QueryBatch {
         maxCollWithShardSets.add(querySolrTask.getShardId());
         RESULTS_CNT_FOR_SHARDS.get(cursor.getCacheKey()).setMaxCollWithShardSets(maxCollWithShardSets);
 
-        logger.warn("Solr(javabin) took {} ms", System.currentTimeMillis() - start);
-        logger.info("End to queryPerShards");
+        logger.warn("Query session {}, solr(javabin) took {} ms", cursor.getCacheKey(), System.currentTimeMillis() - start);
+        logger.info("End to queryPerShards with query session {}.", cursor.getCacheKey());
     }
 
     private long getTotalNumFound(SolrQueryHandlerFactory solrHandlerFactory, String qString, String collection,
-            Map<ResultCnt, String> reqUrlMap) throws LogQueryException {
+            Map<ResultCnt, String> reqUrlMap, String cacheKey) throws LogQueryException {
         long totalNumFound = 0;
         long maxTimeCost = 0l;
         long minTimeCost = Long.MAX_VALUE;
@@ -745,8 +750,8 @@ public class QueryBatch {
             SolrQueryHandler solrHandler = null;
             for (Slice slice : slices) {
                 baseUrl = SolrUtils.getRandomReplicaBaseUrl(slice);
-                if(baseUrl == null) {
-                    logger.warn("collection {} {} has no active replicas.", collection, slice.getName());
+                if (baseUrl == null) {
+                    logger.warn("Query session {}, collection {} {} has no active replicas.", cacheKey, collection, slice.getName());
                     continue;
                 }
                 solrHandler = SolrQueryHandlerFactory.getSolrQueryHandler(qString, baseUrl);
@@ -763,7 +768,7 @@ public class QueryBatch {
             while (solrGetNumFoundPending.size() > 0) {
                 try {
                     Future<SolrQueryRsp> future = solrCompletionService.take();
-                    if(future == null) {
+                    if (future == null) {
                         continue;
                     }
                     solrGetNumFoundPending.remove(future);
@@ -782,29 +787,31 @@ public class QueryBatch {
 
                             reqUrlMap.put(new ResultCnt(solrQueryRsp.getCollWithShardId(), numFound), solrQueryRsp.getReqUrl());
                             totalNumFound = totalNumFound + numFound;
-                            logger.info("Sent to {}, numFound {}, QTime {}, cost {} ms", solrQueryRsp.getReqUrl(),
+                            logger.info("Query session {}, sent to {}, numFound {}, QTime {}, cost {} ms", cacheKey,
+                                    solrQueryRsp.getReqUrl(),
                                     solrQueryRsp.getQueryResponse().getResults().getNumFound(),
                                     solrQueryRsp.getQueryResponse().getQTime(), solrQueryRsp.getTimeCost());
                         }
 
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
-                        logger.error("Live Query process interrupted");
+                        logger.error("Query session {}, live Query process interrupted.", cacheKey);
                         throw new LogQueryException(e.getMessage(), 509);
                     }
                 } catch (Exception e) {
-                    logger.error("Live Query process Exception", e);
+                    logger.error("Query session {}, live Query process Exception",cacheKey, e);
                     throw new LogQueryException(e.getMessage(), 509);
                 }
 
             }
         } catch (Exception e) {
-            logger.error("Live Query process Exception", e);
+            logger.error("Query session {}, live Query process Exception", cacheKey, e);
             throw new LogQueryException(e.getMessage(), 509);
         }
 
-        logger.info("Solr(javabin) query total numFound {}, min cost {} ms, max cost {} ms, and total cost {} ms.",
-                totalNumFound, minTimeCost, maxTimeCost, System.currentTimeMillis() - start);
+        logger.info(
+                "Query session {}, solr(javabin) query total numFound {}, min cost {} ms, max cost {} ms, and total cost {} ms.",
+                cacheKey, totalNumFound, minTimeCost, maxTimeCost, System.currentTimeMillis() - start);
         return totalNumFound;
     }
 

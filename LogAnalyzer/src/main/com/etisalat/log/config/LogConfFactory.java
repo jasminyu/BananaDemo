@@ -227,7 +227,7 @@ public class LogConfFactory {
 
         solrBatchTime = LogConfFactory.getInt(LogConstants.SOLR_BATCH_TIME, 5);
 
-        solrQueryThreshold = LogConfFactory.getInt(LogConstants.SOLR_QUERY_THRESHOLD, 200);
+        solrQueryThreshold = LogConfFactory.getInt(LogConstants.SOLR_QUERY_THRESHOLD, 15);
         keepCsvHeader = LogConfFactory.getBoolean(LogConstants.KEEP_CSV_HEADER, true);
         solrQueryMaxSpan = LogConfFactory.getInt(LogConstants.SOLR_QUERY_MAX_SPAN, 5);
 

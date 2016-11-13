@@ -129,7 +129,7 @@ public class CommonRspProcessor implements RspProcess {
         for (String rowKey : rowKeyList) {
             jsonObj = rspResults.get(rowKey);
             if (jsonObj == null) {
-                logger.debug("rowKey: {} does not have the  related record.", rowKey);
+                logger.debug("rowKey: {} does not have the related record.", rowKey);
                 continue;
             }
             docNum++;

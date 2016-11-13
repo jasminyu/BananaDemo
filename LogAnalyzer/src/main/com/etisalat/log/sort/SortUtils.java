@@ -138,6 +138,10 @@ public class SortUtils {
         List<JsonObject> sortedResults = new ArrayList<JsonObject>();
         for (int i = size - 1; i >= 0; i--) {
             ShardRsp shardRsp = queue.pop();
+            if(shardRsp == null) {
+                logger.debug("shardrsp == null");
+                continue;
+            }
             sortedResults.add(shardRsp.getSortFieldValues().get(shardRsp.orderInShard));
         }
 

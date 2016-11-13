@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.CompletionService;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
 public class SolrQueryTask implements Runnable {
@@ -120,27 +121,33 @@ public class SolrQueryTask implements Runnable {
 
         final HttpSolrClient httpSolrClient = new HttpSolrClient(reqUrl, httpClient);
         try {
-            logger.debug("QUERY request url is {}.", httpSolrClient.getBaseURL());
-            logger.debug("QUERY myParameters is {}.", myParameters.toQueryString());
+            logger.debug("Query session {}, query {}, QUERY request url is {}.", cacheKey, shardId,
+                    httpSolrClient.getBaseURL());
+            logger.debug("Query session {}, query {}, QUERY myParameters is {}.", cacheKey, shardId,
+                    myParameters.toQueryString());
 
             QueryResponse response = httpSolrClient.query(myParameters);
 
             if (response.getStatus() != 0) {
                 logger.error(
-                        "Error(SolrServerException) sending live Query command, url is {}, query is {} with status return code {}",
-                        reqUrl, qString, response.getStatus());
-
+                        "Query session {}, Error(SolrServerException) sending live Query command, url is {}, query is {} with status return code {}",
+                        cacheKey, reqUrl, qString, response.getStatus());
+                
+                checkAndAddResultToCache();
                 return;
             }
 
-            logger.info("query {} with shardId {} , numFound {}  QTime {}, cost {} ms", reqUrl, shardId, response.getResults().getNumFound(),
-                    response.getQTime(), (System.currentTimeMillis() - start));
+            logger.info("Query session {}, {} with shardId {}, numFound {}, QTime {}, solr cost {} ms", cacheKey, reqUrl,
+                    shardId, response.getResults().getNumFound(), response.getQTime(),
+                    (System.currentTimeMillis() - start));
             fetchResultFromHBase(queryHBaseHandlerFactory, response);
 
         } catch (Exception e) {
-            logger.error("Error(SolrServerException) sending live Query command, url is {}",
-                    httpSolrClient.getBaseURL(), e);
+            logger.error("Query session {}, query {}, Error(SolrServerException) sending live Query command, url is {}",
+                    cacheKey, shardId, httpSolrClient.getBaseURL(), e);
         }
+        
+        checkAndAddResultToCache();
     }
 
     private void fetchResultFromHBase(HBaseQueryHandlerFactory queryHBaseHandlerFactory, QueryResponse queryResponse) {
@@ -150,15 +157,14 @@ public class SolrQueryTask implements Runnable {
                 LogConfFactory.hbaseBatchMinSize :
                 LogConfFactory.hbaseBatchSize);
 
-        logger.debug("get hbase row key with hbase size {}", hbaseSize);
-        logger.debug("get hbase row key with result size {}", results.size());
+        logger.debug("Query session {}, query {}, get hbase row key with hbase batch size {}, result size {}", cacheKey, shardId, hbaseSize, results.size());
 
         CompletionService<HBaseQueryCursorRsp> completionService = queryHBaseHandlerFactory.newCompletionService();
         Set<Future<HBaseQueryCursorRsp>> pending = new HashSet<Future<HBaseQueryCursorRsp>>();
 
         List<Get> gets = new ArrayList<Get>();
         long start = System.currentTimeMillis();
-        logger.debug("Query DEBUG results size {} ", results.size());
+        logger.debug("Query session {}, query {}, query DEBUG results size {} ", cacheKey, shardId, results.size());
         List<String> rowKeyList = new ArrayList<String>();
         for (int i = 0; i < results.size(); i++) {
             String solrKey = ((SolrDocument) results.get(i)).getFieldValue("rowkey").toString();
@@ -168,7 +174,8 @@ public class SolrQueryTask implements Runnable {
             gets.add(get);
 
             if (gets.size() == hbaseSize) {
-                HBaseQueryCursorHandler hBaseQueryCursorHandler = new HBaseQueryCursorHandler(collection);
+                HBaseQueryCursorHandler hBaseQueryCursorHandler = new HBaseQueryCursorHandler(collection, cacheKey,
+                        shardId);
                 hBaseQueryCursorHandler.setGets(gets);
                 hBaseQueryCursorHandler.setCompletionService(completionService);
                 hBaseQueryCursorHandler.setPending(pending);
@@ -178,7 +185,8 @@ public class SolrQueryTask implements Runnable {
         }
 
         if (gets.size() != 0) {
-            HBaseQueryCursorHandler hBaseQueryCursorHandler = new HBaseQueryCursorHandler(collection);
+            HBaseQueryCursorHandler hBaseQueryCursorHandler = new HBaseQueryCursorHandler(collection, cacheKey,
+                    shardId);
             hBaseQueryCursorHandler.setGets(gets);
             hBaseQueryCursorHandler.setCompletionService(completionService);
             hBaseQueryCursorHandler.setPending(pending);
@@ -189,61 +197,75 @@ public class SolrQueryTask implements Runnable {
         while (pending.size() > 0) {
             try {
                 Future<HBaseQueryCursorRsp> future = completionService.take();
-                pending.remove(future);
                 HBaseQueryCursorRsp rsp = future.get();
+                pending.remove(future);
+
                 if (rsp != null && rsp.getResultJsonObjMap() != null && rsp.getResultJsonObjMap().size() > 0) {
                     jsonObjectsMap.putAll(rsp.getResultJsonObjMap());
                 }
             } catch (Exception e) {
-                logger.error("hbase data fetch task failed and IOException arised", e);
-                return;
+                logger.error("Query session {}, query {}, hbase data fetch task failed and IOException arised",
+                        cacheKey, shardId, e);
+                continue;
             }
         }
 
         addResultToCache(jsonObjectsMap, rowKeyList);
-        logger.debug("Query hbase table {}, cost:{} ms", collection, (System.currentTimeMillis() - start));
+        logger.info("Query session {}, query {}, cost:{} ms", cacheKey, shardId, (System.currentTimeMillis() - start));
     }
 
     private void addResultToCache(Map<String, JsonObject> jsonObjectsMap, List<String> rowKeyList) {
-        if (jsonObjectsMap.size() == 0) {
-            return;
+
+        ResultCnt resultCnt = QueryBatch.RESULTS_CNT_FOR_SHARDS.get(cacheKey);
+        if (resultCnt == null) {
+            logger.info("Query session {}, can not get result count", cacheKey, shardId);
+        	return;
         }
 
-        synchronized (QueryBatch.RESULTS_FOR_SHARDS) {
-            ResultCnt resultCnt = QueryBatch.RESULTS_CNT_FOR_SHARDS.get(cacheKey);
-            if (resultCnt == null) {
-                return;
-            }
 
-            if (resultCnt.getFetchNum() >= resultCnt.getTotalNum()) {
-                return;
-            }
-
-            Map<String, List<JsonObject>> map = null;
-            map = QueryBatch.RESULTS_FOR_SHARDS.get(cacheKey);
-            if (map == null) {
-                map = new HashMap<String, List<JsonObject>>();
-                QueryBatch.RESULTS_FOR_SHARDS.put(cacheKey, map);
-            }
-
-            List<JsonObject> jsonObjects = new ArrayList<JsonObject>();
-            JsonObject jsonObject = null;
-            for(String rowKey : rowKeyList) {
-                jsonObject = jsonObjectsMap.get(rowKey);
-                if(jsonObject == null) {
-                    logger.debug("rowKey: {} does not have the related record.", rowKey);
-                    continue;
-                }
-                jsonObjects.add(jsonObject);
-            }
-
-            map.put(shardId, jsonObjects);
-
-            if (qCondition.isSort() && qCondition.isExportOp() && jsonObjects.size() != 0) {
-                SortUtils.sortSingleShardRsp(qCondition.getSortedFields(), jsonObjects);
-            }
-
-            resultCnt.setFetchNum(resultCnt.getFetchNum() + jsonObjectsMap.size());
+        ConcurrentHashMap<String, List<JsonObject>> map = QueryBatch.RESULTS_FOR_SHARDS.get(cacheKey);
+        if (map == null) {
+            map = new ConcurrentHashMap<String, List<JsonObject>>();
+            QueryBatch.RESULTS_FOR_SHARDS.put(cacheKey, map);
         }
+
+        List<JsonObject> jsonObjects = new ArrayList<JsonObject>();
+        JsonObject jsonObject = null;
+        
+        if(jsonObjectsMap.size() != 0) {
+        for (String rowKey : rowKeyList) {
+            jsonObject = jsonObjectsMap.get(rowKey);
+            if (jsonObject == null) {
+                logger.debug("Query session {}, query {}, rowKey: {} does not have the related record.", cacheKey,
+                        shardId, rowKey);
+                continue;
+            }
+            jsonObjects.add(jsonObject);
+        }
+        }
+
+        map.put(shardId, jsonObjects);
+
+        if (qCondition.isSort() && qCondition.isExportOp() && jsonObjects.size() != 0) {
+            SortUtils.sortSingleShardRsp(qCondition.getSortedFields(), jsonObjects);
+        }
+
+        logger.info("Query session {}, query {}, size: {}, hbase cost:{} ms", cacheKey, shardId, jsonObjects.size() );
+        resultCnt.setFetchNum(resultCnt.getFetchNum() + jsonObjectsMap.size());
     }
+    
+    private void checkAndAddResultToCache() {
+    	ConcurrentHashMap<String, List<JsonObject>> map = QueryBatch.RESULTS_FOR_SHARDS.get(cacheKey);
+    	if (map == null) {
+    		map = new ConcurrentHashMap<String, List<JsonObject>>();
+    		QueryBatch.RESULTS_FOR_SHARDS.put(cacheKey, map);
+    	}
+    	
+    	if (!map.containsKey(shardId)){
+    		logger.warn("Query session {}, query {} failed or result is empty.", cacheKey, shardId);
+    		map.put(shardId, new ArrayList<JsonObject>());
+    	}
+    	
+    }
+    
 }

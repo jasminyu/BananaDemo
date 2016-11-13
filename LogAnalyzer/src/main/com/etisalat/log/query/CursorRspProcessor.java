@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class CursorRspProcessor implements RspProcess {
     protected static final Logger logger = LoggerFactory.getLogger(CursorRspProcessor.class);
@@ -25,6 +26,7 @@ public class CursorRspProcessor implements RspProcess {
     private long realReturnNum = 0;
     private long singleFileSize = 0;
     private String maxCollection = null;
+    private String maxCollShard = null;
     private Set<String> maxCollShardSet;
 
     public CursorRspProcessor(QueryCondition queryCondition, Cursor cursor, long realReturnNum) {
@@ -35,20 +37,37 @@ public class CursorRspProcessor implements RspProcess {
     }
 
     public CursorRspProcessor(QueryCondition queryCondition, Cursor cursor, long realReturnNum,
-                              Set<String> maxCollShardSet) {
+            Set<String> maxCollShardSet) {
         this(queryCondition, cursor, realReturnNum);
         this.maxCollShardSet = maxCollShardSet;
         setMaxCollection();
+        setMaxCollShardId();
     }
 
     private void setMaxCollection(){
         List<String> collections = new ArrayList<String>();
         for(String collWithShard : maxCollShardSet) {
-            collections.add(SolrUtils.getCollection(collWithShard));
+           collections.add(SolrUtils.getCollection(collWithShard));
         }
 
         Collections.sort(collections);
-        this.maxCollection = collections.get(collections.size() - 1);
+        this. maxCollection = collections.get(collections.size()-1);
+    }
+
+    private void setMaxCollShardId() {
+        List<Integer> maxShardIds = new ArrayList<Integer>();
+        for (String collWithShard : maxCollShardSet) {
+            if (collWithShard.startsWith(maxCollection)) {
+                try {
+                    maxShardIds.add(SolrUtils.getIdOfShardId(SolrUtils.getShardId(collWithShard)));
+                } catch (LogQueryException e) {
+                    logger.warn("Query session {}", cursor.getCacheKey(), e.getMessage());
+                }
+            }
+        }
+
+        Collections.sort(maxShardIds);
+        maxCollShard = SolrUtils.getCollWithShardId(maxCollection, "_shard" + maxShardIds.get(maxShardIds.size() - 1));
     }
 
     @Override
@@ -63,12 +82,13 @@ public class CursorRspProcessor implements RspProcess {
     @Override
     public String processExport() throws LogQueryException {
         String cacheKey = cursor.getCacheKey();
+        logger.info("Start process download, query session {}", cacheKey);
         long waitStart = System.currentTimeMillis();
         ResultCnt resultCnt = null;
 
-        try{
+        try {
             Thread.sleep(LogConfFactory.queryFirstWaitTime);
-        }catch(InterruptedException e){
+        } catch (InterruptedException e) {
         }
 
         while (true) {
@@ -81,67 +101,64 @@ public class CursorRspProcessor implements RspProcess {
                 break;
             }
 
-            try{
+            try {
                 Thread.sleep(LogConfFactory.queryResultCheckInterval);
-            }catch(InterruptedException e){
+            } catch (InterruptedException e) {
             }
         }
-        
-		Map<String, List<JsonObject>> resultMap = QueryBatch.RESULTS_FOR_SHARDS
-				.get(cacheKey);
-		if (resultMap == null) {
-			String errMsg = "failed to query for null results.";
-			logger.error(errMsg);
-			throw new LogQueryException("errMsg");
-		}
-		
-		return export(resultMap);
 
+        ConcurrentHashMap<String, List<JsonObject>> resultMap = QueryBatch.RESULTS_FOR_SHARDS.get(cacheKey);
+        if (resultMap == null) {
+            String errMsg = "failed to query for null results.";
+            logger.error("Query session " + cacheKey + ", error: " + errMsg);
+            throw new LogQueryException(errMsg);
+        }
+
+        QueryBatch.RESULTS_FOR_SHARDS.remove(cacheKey);
+       return export(resultMap);
     }
-    
-    private String export(Map<String, List<JsonObject>> resultMap) throws LogQueryException {
-		List<SortField> fields = queryCondition.getSortedFields();
-		if (fields == null || fields.size() == 0) {
-			return exportWithoutSort(resultMap);
-		}
 
-		List<JsonObject> results = SortUtils.sort(resultMap, fields,
-				(int) realReturnNum, LogConfFactory.uniqueKey);
-		try {
-			if (WTType.JSON == queryCondition.getWtType()) {
-				return writeJsonFiles(results);
-			} else if (WTType.CSV == queryCondition.getWtType()) {
-				return writeCSVFiles(results);
-			} else if (WTType.XML == queryCondition.getWtType()) {
-				return writeXmlFiles(results);
-			} else {
-				throw new LogQueryException("Unknown wtType.");
-			}
-		} catch (IOException e) {
-			throw new LogQueryException("failed to download data, "
-					+ e.getMessage());
-		}
-	}
+    private String export(ConcurrentHashMap<String, List<JsonObject>> resultMap) throws LogQueryException {
+        List<SortField> fields = queryCondition.getSortedFields();
+        if (fields == null || fields.size() == 0) {
+            return exportWithoutSort(resultMap);
+        }
+
+        List<JsonObject> results = SortUtils.sort(resultMap, fields, (int) realReturnNum, LogConfFactory.uniqueKey);
+        try {
+            if (WTType.JSON == queryCondition.getWtType()) {
+                return writeJsonFiles(results);
+            } else if (WTType.CSV == queryCondition.getWtType()) {
+                return writeCSVFiles(results);
+            } else if (WTType.XML == queryCondition.getWtType()) {
+                return writeXmlFiles(results);
+            } else {
+                throw new LogQueryException("Unknown wtType.");
+            }
+        } catch (IOException e) {
+            throw new LogQueryException("failed to download data, " + e.getMessage());
+        }
+    }
 
     private String exportWithoutSort(Map<String, List<JsonObject>> resultMap) throws LogQueryException {
-    	try {
-    		if (WTType.JSON == queryCondition.getWtType()) {
-    			return writeJsonFiles(resultMap.entrySet());
-    			} else if (WTType.CSV == queryCondition.getWtType()) {
-    				return writeCSVFiles(resultMap.entrySet());
-    				} else if (WTType.XML == queryCondition.getWtType()) {
-    			return writeXmlFiles(resultMap.entrySet());                   
-    			} else {
-                   throw new LogQueryException("Unknown wtType.");
-               }
-           } catch (IOException e) {
-               throw new LogQueryException("failed to download data, " + e.getMessage());
-           }
+        try {
+            if (WTType.JSON == queryCondition.getWtType()) {
+                return writeJsonFiles(resultMap.entrySet());
+            } else if (WTType.CSV == queryCondition.getWtType()) {
+                return writeCSVFiles(resultMap.entrySet());
+            } else if (WTType.XML == queryCondition.getWtType()) {
+                return writeXmlFiles(resultMap.entrySet());
+            } else {
+                throw new LogQueryException("Unknown wtType.");
+            }
+        } catch (IOException e) {
+            throw new LogQueryException("failed to download data, " + e.getMessage());
+        }
     }
- 
+
     private String getFileName(int fileIdx) {
-        return queryCondition.getLocalPath() + File.separator + "data-" + fileIdx + "." + queryCondition
-                .getWtType().name().toLowerCase();
+        return queryCondition.getLocalPath() + File.separator + "data-" + fileIdx + "." + queryCondition.getWtType()
+                .name().toLowerCase();
     }
 
     private void write(String filePath, String content) throws IOException {
@@ -161,7 +178,7 @@ public class CursorRspProcessor implements RspProcess {
         JsonObject resultObj = SolrUtils.deepCopyJsonObj(LogConfFactory.solrQueryRspJsonObj);
         JsonObject rspJson = resultObj.getAsJsonObject("response");
         if (null == rspJson) {
-            logger.error("rspJson is null and return null!");
+            logger.error("Query session {}, rspJson is null and return null!", cursor.getCacheKey());
             return null;
         }
 
@@ -314,7 +331,7 @@ public class CursorRspProcessor implements RspProcess {
         JsonObject resultObj = SolrUtils.deepCopyJsonObj(LogConfFactory.solrQueryRspJsonObj);
         JsonObject rspJson = resultObj.getAsJsonObject("response");
         if (null == rspJson) {
-            logger.error("rspJson is null and return null!");
+            logger.error("Query session {}, rspJson is null and return null!", cursor.getCacheKey());
             return null;
         }
 
@@ -322,7 +339,7 @@ public class CursorRspProcessor implements RspProcess {
         rspJson.addProperty("nums", realReturnNum);
         int docNum = 0;
         boolean finished = false;
-        int fileIdx = 0; 
+        int fileIdx = 0;
         for (JsonObject jsonObj : jsonObjects) {
             if (docNum >= realReturnNum) {
                 finished = true;
@@ -346,7 +363,7 @@ public class CursorRspProcessor implements RspProcess {
 
         return queryCondition.getLocalPath();
     }
-   
+
     private String writeXmlFiles(List<JsonObject> jsonObjects) throws IOException {
         XmlWriter xmlWriter = null;
         int docNum = 0;
@@ -391,7 +408,7 @@ public class CursorRspProcessor implements RspProcess {
         }
         return queryCondition.getLocalPath();
     }
-    
+
     private String writeCSVFiles(List<JsonObject> jsonObjectList) throws IOException {
         String csvHeader = null;
         StringBuilder builder = new StringBuilder();
@@ -442,14 +459,15 @@ public class CursorRspProcessor implements RspProcess {
     @Override
     public String processDisplay() throws LogQueryException {
         String cacheKey = cursor.getCacheKey();
+        logger.info("Start process display, query session {}", cacheKey);
         String collection = null;
         String collWithShardId = null;
         int idx = 0;
 
-        if(queryCondition.getNextCursor() == null) {
-            try{
+        if (queryCondition.getNextCursor() == null) {
+            try {
                 Thread.sleep(LogConfFactory.queryFirstWaitTime);
-            }catch(InterruptedException e) {
+            } catch (InterruptedException e) {
             }
         }
 
@@ -461,9 +479,10 @@ public class CursorRspProcessor implements RspProcess {
         JsonObject rspJsonObj = resultJsonObj.getAsJsonObject("response");
         JsonArray resultJsonObjArray = new JsonArray();
         int jsonListSize = 0;
+        boolean walkingFinished = false;
         while (true) {
             checkTime(waitStart);
-            Map<String, List<JsonObject>> resultMap = QueryBatch.RESULTS_FOR_SHARDS.get(cacheKey);
+            ConcurrentHashMap<String, List<JsonObject>> resultMap = QueryBatch.RESULTS_FOR_SHARDS.get(cacheKey);
             if (cnt >= rows || cnt >= realReturnNum) {
                 break;
             }
@@ -481,7 +500,7 @@ public class CursorRspProcessor implements RspProcess {
             collWithShardId = SolrUtils.getCollWithShardId(collection, cursor.getShardId());
             idx = cursor.getFetchIdx();
 
-            logger.debug("getres {}, {}, {}",collection, collWithShardId, idx);
+            logger.debug("Query session {}, getres {}, {}, {}", cacheKey, collection, collWithShardId, idx);
             jsonObjectList = resultMap.get(collWithShardId);
 
             if (jsonObjectList == null) {
@@ -494,8 +513,10 @@ public class CursorRspProcessor implements RspProcess {
                 } catch (InterruptedException e) {
                     logger.warn(e.getMessage());
                 }
+
                 continue;
             }
+
             jsonListSize = jsonObjectList.size();
             for (; idx < jsonListSize; idx++) {
                 if (cnt >= rows) {
@@ -505,7 +526,12 @@ public class CursorRspProcessor implements RspProcess {
                 cnt++;
             }
 
-            updateCursor(cursor, collection, collWithShardId, idx, jsonListSize);
+            walkingFinished = isWalkingFinished(cursor, collection, collWithShardId, idx, jsonListSize);
+            if (walkingFinished) {
+                break;
+            }
+
+            updateCursorAndUpdateCache(cursor, collection, collWithShardId, idx, jsonListSize);
         }
 
         if (queryCondition.isSort()) {
@@ -514,8 +540,19 @@ public class CursorRspProcessor implements RspProcess {
 
         rspJsonObj.add("docs", resultJsonObjArray);
         rspJsonObj.addProperty("nums", realReturnNum);
-        rspJsonObj.addProperty("nextCursorMark", (rows > realReturnNum) ? "" : cursor.toString());
+        
+        if (realReturnNum != 0 && resultJsonObjArray.size() == 0 ) {
+        	return JsonUtil.toJson(SolrUtils.getErrJsonObj("failed to query data.", 500));
+        }
+        
+        if(rows > realReturnNum || walkingFinished) {
+            rspJsonObj.addProperty("nextCursorMark", "");
+            QueryBatch.RESULTS_FOR_SHARDS.remove(cacheKey);
+        }else {
+            rspJsonObj.addProperty("nextCursorMark", cursor.toString());
+        }
 
+        logger.info("Query session {}, end process display.", cacheKey);
         return JsonUtil.toJson(resultJsonObj);
     }
 
@@ -529,17 +566,26 @@ public class CursorRspProcessor implements RspProcess {
         }
     }
 
-    private void updateCursor(Cursor cursor, String collection, String collWithShardId, int idx, int jsonListSize)
+    private boolean isWalkingFinished(Cursor cursor, String collection, String collWithShardId, int idx, int jsonListSize)
             throws LogQueryException {
-        logger.debug("cursor {}, {},{}",cursor.toString(), collection, collWithShardId);
+        logger.debug("cursor {}, {},{}", cursor.toString(), collection, collWithShardId);
+        if (idx >= jsonListSize && maxCollShard.equals(collWithShardId) && collection.equals(maxCollection)) {
+            return true;
+        }
+        return false;
+    }
+
+    private void updateCursorAndUpdateCache(Cursor cursor, String collection, String collWithShardId, int idx, int jsonListSize)
+            throws LogQueryException {
         if (idx >= jsonListSize) {
+            QueryBatch.RESULTS_FOR_SHARDS.get(cursor.getCacheKey()).remove(collWithShardId);
             cursor.setFetchIdx(0);
             if (maxCollShardSet.contains(collWithShardId)) {
                 collection = SolrUtils.getNextCollection(collection, maxCollection);
                 cursor.setCollection(collection);
                 cursor.setShardId(LogConfFactory.solrMinShardId);
             } else {
-                cursor.setShardId(SolrUtils.getNextShardId(SolrUtils.getShardId(collWithShardId)));
+                 cursor.setShardId(SolrUtils.getNextShardId(SolrUtils.getShardId(collWithShardId)));
             }
         } else {
             cursor.setFetchIdx(idx);
