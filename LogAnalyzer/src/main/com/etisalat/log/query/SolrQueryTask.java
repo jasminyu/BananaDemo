@@ -167,7 +167,7 @@ public class SolrQueryTask implements Runnable {
         logger.debug("Query session {}, query {}, query DEBUG results size {} ", cacheKey, shardId, results.size());
         List<String> rowKeyList = new ArrayList<String>();
         for (int i = 0; i < results.size(); i++) {
-            String solrKey = ((SolrDocument) results.get(i)).getFieldValue("rowkey").toString();
+            String solrKey = ((SolrDocument) results.get(i)).getFieldValue(LogConfFactory.rowkeyName).toString();
             rowKeyList.add(solrKey);
             byte[] rowkey = SolrUtils.exchangeKey(solrKey);
             Get get = new Get(rowkey);
@@ -211,7 +211,7 @@ public class SolrQueryTask implements Runnable {
         }
 
         addResultToCache(jsonObjectsMap, rowKeyList);
-        logger.info("Query session {}, query {}, cost:{} ms", cacheKey, shardId, (System.currentTimeMillis() - start));
+        logger.info("Query session {}, query {}, hbase cost:{} ms", cacheKey, shardId, (System.currentTimeMillis() - start));
     }
 
     private void addResultToCache(Map<String, JsonObject> jsonObjectsMap, List<String> rowKeyList) {
