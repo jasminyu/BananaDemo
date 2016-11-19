@@ -29,6 +29,9 @@ public class SolrQueryTask implements Runnable {
     private String rows;
     private HttpClient httpClient;
     private QueryCondition qCondition;
+    private boolean lazyFetch = false;
+    private int startRows = 0;
+    private int fetchRows = 0;
 
     private HBaseQueryHandlerFactory queryHBaseHandlerFactory = null;
 
@@ -109,6 +112,30 @@ public class SolrQueryTask implements Runnable {
         this.shardId = shardId;
     }
 
+    public boolean isLazyFetch() {
+        return lazyFetch;
+    }
+
+    public void setLazyFetch(boolean lazyFetch) {
+        this.lazyFetch = lazyFetch;
+    }
+
+    public int getStartRows() {
+        return startRows;
+    }
+
+    public void setStartRows(int startRows) {
+        this.startRows = startRows;
+    }
+
+    public int getFetchRows() {
+        return fetchRows;
+    }
+
+    public void setFetchRows(int fetchRows) {
+        this.fetchRows = fetchRows;
+    }
+
     @Override
     public void run() {
         long start = System.currentTimeMillis();
@@ -137,9 +164,8 @@ public class SolrQueryTask implements Runnable {
                 return;
             }
 
-            logger.info("Query session {}, {} with shardId {}, rows {}, QTime {}, solr cost {} ms", cacheKey, reqUrl,
-                    shardId, rows, response.getQTime(),
-                    (System.currentTimeMillis() - start));
+            logger.info("Query session {}, {} with shardId {}, rows {}, solr cost {} ms", cacheKey, reqUrl,
+                    shardId, rows, (System.currentTimeMillis() - start));
             fetchResultFromHBase(queryHBaseHandlerFactory, response);
 
         } catch (Exception e) {
@@ -167,9 +193,14 @@ public class SolrQueryTask implements Runnable {
         long start = System.currentTimeMillis();
         logger.debug("Query session {}, query {}, query DEBUG results size {} ", cacheKey, shardId, results.size());
         List<String> rowKeyList = new ArrayList<String>();
+
+        int cnt = 0;
         for (int i = 0; i < results.size(); i++) {
             String solrKey = ((SolrDocument) results.get(i)).getFieldValue(LogConfFactory.rowkeyName).toString();
             rowKeyList.add(solrKey);
+            if(i < startRows || (lazyFetch && cnt >= fetchRows)) {
+                continue;
+            }
             byte[] rowkey = SolrUtils.exchangeKey(solrKey);
             Get get = new Get(rowkey);
             gets.add(get);
@@ -183,6 +214,8 @@ public class SolrQueryTask implements Runnable {
                 hBaseQueryCursorHandler.submit();
                 gets = new ArrayList<Get>();
             }
+
+            cnt ++;
         }
 
         if (gets.size() != 0) {
@@ -200,7 +233,6 @@ public class SolrQueryTask implements Runnable {
                 Future<HBaseQueryCursorRsp> future = completionService.take();
                 HBaseQueryCursorRsp rsp = future.get();
                 pending.remove(future);
-
                 if (rsp != null && rsp.getResultJsonObjMap() != null && rsp.getResultJsonObjMap().size() > 0) {
                     jsonObjectsMap.putAll(rsp.getResultJsonObjMap());
                 }
@@ -211,7 +243,19 @@ public class SolrQueryTask implements Runnable {
             }
         }
 
-        addResultToCache(jsonObjectsMap, rowKeyList);
+        if (lazyFetch) {
+            ConcurrentHashMap<String, List<String>> map = QueryBatch.RESULTS_FOR_SHARDS.get(cacheKey);
+            if (map == null) {
+                map = new ConcurrentHashMap<String, List<String>>();
+                QueryBatch.RESULTS_FOR_SHARDS.put(cacheKey, map);
+            }
+            map.put(shardId, rowKeyList);
+
+            addResultToCache2(jsonObjectsMap, rowKeyList);
+        } else {
+            addResultToCache(jsonObjectsMap, rowKeyList);
+        }
+
         logger.info("Query session {}, query {}, hbase cost: {} ms", cacheKey, shardId, (System.currentTimeMillis() - start));
     }
 
@@ -222,19 +266,20 @@ public class SolrQueryTask implements Runnable {
             QueryBatch.RESULTS_FOR_SHARDS.put(cacheKey, map);
         }
 
+        JsonObject jsonObject = new JsonObject();
         List<String> jsonObjects = new ArrayList<String>();
         String jsonStr = null;
-        
-        if(jsonObjectsMap.size() != 0) {
-        for (String rowKey : rowKeyList) {
-            jsonStr = jsonObjectsMap.get(rowKey);
-            if (jsonStr == null) {
-                logger.debug("Query session {}, query {}, rowKey: {} does not have the related record.", cacheKey,
-                        shardId, rowKey);
-                continue;
+        if (jsonObjectsMap.size() != 0) {
+            for (String rowKey : rowKeyList) {
+                jsonStr = jsonObjectsMap.get(rowKey);
+                if (jsonStr == null) {
+                    logger.debug("Query session {}, query {}, rowKey: {} does not have the related record.", cacheKey,
+                            shardId, rowKey);
+                    jsonObject.addProperty(LogConfFactory.rowkeyName, rowKey);
+                    jsonStr = jsonObject.toString();
+                }
+                jsonObjects.add(jsonStr);
             }
-            jsonObjects.add(jsonStr);
-        }
         }
 
         map.put(shardId, jsonObjects);
@@ -244,12 +289,45 @@ public class SolrQueryTask implements Runnable {
         }
 
         if (Integer.valueOf(rows) != jsonObjects.size()) {
-        	logger.warn("Query session {}, solr result size {}, but hbase result size is {} ", cacheKey, shardId, rows, jsonObjects.size());
+        	logger.warn("Query session {}, query {}, solr result size {}, but hbase result size is {} ", cacheKey, shardId, rows, jsonObjects.size());
         }
-        logger.info("Query session {}, query {}, add {} record to cache.", cacheKey, shardId, jsonObjects.size() );
 
+        logger.info("Query session {}, query {}, add {} record to cache.", cacheKey, shardId, jsonObjects.size() );
     }
-    
+
+    private void addResultToCache2(Map<String, String> jsonObjectsMap, List<String> rowKeyList) {
+        List<String> jsonObjects = QueryBatch.RESULTS_FOR_SHARDS.get(cacheKey).get(shardId);
+        String jsonStr = null;
+        int resSize = jsonObjectsMap.size();
+        JsonObject jsonObject = new JsonObject();
+        if (resSize != 0) {
+            int i = startRows;
+            String rowKey = null;
+            for (; i < jsonObjects.size(); i++) {
+                rowKey = rowKeyList.get(i);
+                jsonStr = jsonObjectsMap.get(rowKey);
+                if (jsonStr == null) {
+                    logger.debug("Query session {}, query {}, rowKey: {} does not have the related record.", cacheKey,
+                            shardId, rowKey);
+                    jsonObject.addProperty(LogConfFactory.rowkeyName, rowKey);
+                    jsonStr = jsonObject.toString();
+                }
+
+                jsonObjects.set(i, jsonStr);
+            }
+        }
+
+        if (qCondition.isSort() && qCondition.isExportOp() && jsonObjects.size() != 0) {
+            SortUtils.sortSingleShardRsp(qCondition.getSortedFields(), jsonObjects);
+        }
+
+        if (Integer.valueOf(rows) != jsonObjects.size()) {
+            logger.warn("Query session {}, query {}, solr result size {}, but hbase result size is {} ", cacheKey, shardId, rows, jsonObjects.size());
+        }
+
+        logger.info("Query session {}, query {}, add {} record to cache.", cacheKey, shardId, jsonObjects.size());
+    }
+
     private void checkAndAddResultToCache() {
     	ConcurrentHashMap<String, List<String>> map = QueryBatch.RESULTS_FOR_SHARDS.get(cacheKey);
     	if (map == null) {

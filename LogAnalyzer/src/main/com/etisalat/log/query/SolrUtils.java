@@ -285,7 +285,7 @@ public class SolrUtils {
             return collection;
         }
         String dateStr = collection.substring(LogConfFactory.collectionPrefixLen);
-        String newCollection = LogConfFactory.collectionPrefix + getNextDateString(dateStr);
+        String newCollection = LogConfFactory.collectionPrefix + getNextORPreDateString(dateStr, true);
         if (newCollection.compareTo(maxCollection) >= 0) {
             return maxCollection;
         } else {
@@ -293,7 +293,12 @@ public class SolrUtils {
         }
     }
 
-    private static String getNextDateString(String dateStr) throws LogQueryException {
+    protected static String getPreCollection(String collection) throws LogQueryException {
+        String dateStr = collection.substring(LogConfFactory.collectionPrefixLen);
+        return LogConfFactory.collectionPrefix + getNextORPreDateString(dateStr, false);
+    }
+
+    private static String getNextORPreDateString(String dateStr, boolean next) throws LogQueryException {
         Calendar rightNow = Calendar.getInstance();
         Date date = null;
         try {
@@ -306,12 +311,27 @@ public class SolrUtils {
         }
 
         rightNow.setTime(date);
-        rightNow.add(Calendar.DAY_OF_YEAR, +1);
+        if (next) {
+            rightNow.add(Calendar.DAY_OF_YEAR, +1);
+        } else {
+            rightNow.add(Calendar.DAY_OF_YEAR, -1);
+        }
         return LogConfFactory.collectionSuffixDateFormat.format(rightNow.getTime());
     }
 
     protected static String getNextShardId(String shardId) throws LogQueryException {
         return "_shard" + (getIdOfShardId(shardId) + 1);
+    }
+
+    protected static String getPreCollWithShard(String collWithShardId) throws LogQueryException {
+        String shardIdStr = getShardId(collWithShardId);
+        String collection = getCollection(collWithShardId);
+        int id = getIdOfShardId(shardIdStr) - 1;
+        if (id <= 0) {
+            return getCollWithShardId(getPreCollection(collection), LogConfFactory.solrMaxShardId);
+        } else {
+            return getCollWithShardId(collection, "_shard_" + id);
+        }
     }
 
     public static Integer compareShardId(String shard, String secondShard) throws LogQueryException {

@@ -2,6 +2,7 @@ package com.etisalat.log.query;
 
 import com.etisalat.log.common.LogQueryException;
 
+import java.util.Map;
 import java.util.Set;
 
 public class ResultCnt {
@@ -9,6 +10,7 @@ public class ResultCnt {
     private long totalNum;
 
     private Set<String> maxCollWithShardSets = null;
+    private Map<String, SolrQueryTask> taskMap = null;
 
     public ResultCnt(String collWithShardId, long totalNum) {
         this.collWithShardId = collWithShardId;
@@ -41,6 +43,14 @@ public class ResultCnt {
 
     public void setMaxCollWithShardSets(Set<String> maxCollWithShardSets) {
         this.maxCollWithShardSets = maxCollWithShardSets;
+    }
+
+    public Map<String, SolrQueryTask> getTaskMap() {
+        return taskMap;
+    }
+
+    public void setTaskMap(Map<String, SolrQueryTask> taskMap) {
+        this.taskMap = taskMap;
     }
 
     @Override

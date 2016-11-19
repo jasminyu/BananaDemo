@@ -368,14 +368,12 @@ public class QueryBatch {
             SolrQueryHandlerFactory solrQueryHandlerFactory) throws LogQueryException {
         logger.info("Start to query batch by solrj.");
         if ((queryCondition.isExportOp() || LogConfFactory.queryPerShard) && !queryCondition.queryInCloudMode()) {
-        	
         	return queryPerShards(solrQueryHandlerFactory, queryHBaseHandlerFactory);
         } 
 
-        if (queryCondition.queryInCloudMode()) {
+//        if (queryCondition.queryInCloudMode()) {
         	return startQuery(queryHBaseHandlerFactory);
-        }
-        throw new LogQueryException("Does not support!");
+//        }
     }
 
     public String startQuery(HBaseQueryHandlerFactory queryHBaseHandlerFactory) throws LogQueryException {
@@ -663,6 +661,9 @@ public class QueryBatch {
         
         CursorRspProcessor rspProcessor = new CursorRspProcessor(queryCondition, cursor,
                resultCnt.getTotalNum(), resultCnt.getMaxCollWithShardSets());
+        if(!queryCondition.isExportOp()) {
+            rspProcessor.setSolrHandlerFactory(solrHandlerFactory);
+        }
         return rspProcessor.process();
     }
 
@@ -693,6 +694,7 @@ public class QueryBatch {
 
         this.realReturnNum =
                 queryCondition.getTotalReturnNum() < totalNumFound ? queryCondition.getTotalReturnNum() : totalNumFound;
+        queryCondition.setTotalReturnNum((int) this.realReturnNum);
 
         if (totalNumFound == 0) {
             RESULTS_CNT_FOR_SHARDS.put(cursor.getCacheKey(), new ResultCnt(0));
@@ -707,12 +709,16 @@ public class QueryBatch {
         Set<String> maxCollWithShardSets = new HashSet<String>();
 
         Set<Map.Entry<ResultCnt, String>> entrySet = reqUrlMap.entrySet();
+        Map<String, SolrQueryTask> taskMap = new HashMap<String, SolrQueryTask>();
         ResultCnt resultCnt = null;
         SolrQueryTask querySolrTask = null;
         int idx = 0;
         String lastColl = null;
         String lastShard = null;
         String coll = null;
+        int numFound = 0;
+        int left = queryCondition.getTotalNum();
+        long actualFetchRows = 0;
         for (Map.Entry<ResultCnt, String> entry : entrySet) {
             resultCnt = entry.getKey();
             querySolrTask = new SolrQueryTask(qString, entry.getValue());
@@ -737,14 +743,39 @@ public class QueryBatch {
             querySolrTask.setqCondition(queryCondition);
             querySolrTask.setHttpClient(solrClient.getLbClient().getHttpClient());
             querySolrTask.setQueryHBaseHandlerFactory(queryHBaseHandlerFactory);
-            querySolrTask.setRows(Long.valueOf((long) Math
-                    .ceil((float) resultCnt.getTotalNum() / totalNumFound * queryCondition.getTotalReturnNum())
-                    + LogConfFactory.solrQueryThreshold).toString());
-            solrHandlerFactory.submitQuerySolrTask(querySolrTask);
+            actualFetchRows = Long.valueOf((long) Math
+                    .ceil((float) resultCnt.getTotalNum() / totalNumFound * queryCondition.getTotalReturnNum())) + LogConfFactory.solrQueryThreshold;
+
+            querySolrTask.setRows(resultCnt.getTotalNum() <= actualFetchRows ? String.valueOf(resultCnt.getTotalNum()) : String.valueOf(actualFetchRows));
+
+            if (queryCondition.isExportOp()) {
+                solrHandlerFactory.submitQuerySolrTask(querySolrTask);
+                continue;
+            }
+
+            if (left > 0) {
+                numFound = Integer.valueOf(querySolrTask.getRows());
+                querySolrTask.setStartRows(0);
+                querySolrTask.setFetchRows((numFound > left) ? left : numFound);
+                querySolrTask.setLazyFetch(true);
+                left = left - querySolrTask.getFetchRows();
+                solrHandlerFactory.submitQuerySolrTask(querySolrTask);
+                if(numFound > querySolrTask.getFetchRows()) {
+                    logger.info("Query session {}, with shardId {}, rows {}, add to task to lazy fetch.",
+                            querySolrTask.getCacheKey(), querySolrTask.getShardId(), querySolrTask.getRows());
+                    taskMap.put(querySolrTask.getShardId(), querySolrTask);
+                }
+            } else {
+                logger.info("Query session {}, with shardId {}, rows {}, add to task to lazy fetch.",
+                        querySolrTask.getCacheKey(), querySolrTask.getShardId(), querySolrTask.getRows());
+                taskMap.put(querySolrTask.getShardId(), querySolrTask);
+            }
         }
 
         maxCollWithShardSets.add(querySolrTask.getShardId());
-        RESULTS_CNT_FOR_SHARDS.get(cursor.getCacheKey()).setMaxCollWithShardSets(maxCollWithShardSets);
+        ResultCnt taskResultCnt = RESULTS_CNT_FOR_SHARDS.get(cursor.getCacheKey());
+        taskResultCnt.setMaxCollWithShardSets(maxCollWithShardSets);
+        taskResultCnt.setTaskMap(taskMap);
 
         logger.warn("Query session {}, solr(javabin) took {} ms", cursor.getCacheKey(),
         		System.currentTimeMillis() - start);

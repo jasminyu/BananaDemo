@@ -11,6 +11,7 @@ import com.etisalat.log.sort.SortUtils;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.apache.solr.client.solrj.SolrQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +30,8 @@ public class CursorRspProcessor implements RspProcess {
     private String maxCollShard = null;
     private Set<String> maxCollShardSet;
 
+    private SolrQueryHandlerFactory solrHandlerFactory = null;
+
     public CursorRspProcessor(QueryCondition queryCondition, Cursor cursor, long realReturnNum) {
         this.cursor = cursor;
         this.queryCondition = queryCondition;
@@ -42,6 +45,14 @@ public class CursorRspProcessor implements RspProcess {
         this.maxCollShardSet = maxCollShardSet;
         setMaxCollection();
         setMaxCollShardId();
+    }
+
+    public SolrQueryHandlerFactory getSolrHandlerFactory() {
+        return solrHandlerFactory;
+    }
+
+    public void setSolrHandlerFactory(SolrQueryHandlerFactory solrHandlerFactory) {
+        this.solrHandlerFactory = solrHandlerFactory;
     }
 
     private void setMaxCollection(){
@@ -156,6 +167,7 @@ public class CursorRspProcessor implements RspProcess {
             throw new LogQueryException(errMsg);
         }
 
+        logger.warn("Query remove session {}", cacheKey);
         QueryBatch.RESULTS_FOR_SHARDS.remove(cacheKey);
         QueryBatch.RESULTS_CNT_FOR_SHARDS.remove(cacheKey);
         
@@ -372,6 +384,7 @@ public class CursorRspProcessor implements RspProcess {
                     if (first) {
                         builder.append(entryElement.getValue().getAsString());
                         first = false;
+                        continue;
                     }
                     builder.append(",").append(entryElement.getValue().getAsString());
                 }
@@ -503,6 +516,7 @@ public class CursorRspProcessor implements RspProcess {
                 if (first) {
                     builder.append(entryElement.getValue().getAsString());
                     first = false;
+                    continue;
                 }
                 builder.append(",").append(entryElement.getValue().getAsString());
             }
@@ -611,22 +625,70 @@ public class CursorRspProcessor implements RspProcess {
         rspJsonObj.addProperty("nums", realReturnNum);
         
         if (realReturnNum != 0 && resultJsonObjArray.size() == 0 ) {
+            logger.error("Query remove session {} for no results.", cacheKey);
         	QueryBatch.RESULTS_FOR_SHARDS.remove(cacheKey);
         	QueryBatch.RESULTS_CNT_FOR_SHARDS.remove(cacheKey);
         	logger.error("Query session {}, failed to get data, query {}, but cannot fetch the query data.", cacheKey,realReturnNum);
         	return JsonUtil.toJson(SolrUtils.getErrJsonObj("failed to query data.", 500));
         }
         if(rows > realReturnNum || walkingFinished) {
+            logger.error("Query remove session {} for walk finished.", cacheKey);
             rspJsonObj.addProperty("nextCursorMark", "");
             QueryBatch.RESULTS_FOR_SHARDS.remove(cacheKey);
             QueryBatch.RESULTS_CNT_FOR_SHARDS.remove(cacheKey);
         }else {
             rspJsonObj.addProperty("nextCursorMark", cursor.toString());
+            submitNextTask(cacheKey);
         }
 
-        logger.info("Query session {} from rows {}, end process display.", cacheKey, 
+        logger.info("Query session {} fro rows {}, end process display.", cacheKey,
         		queryCondition.getTotalReturnNum() !=0 ? queryCondition.getTotalReturnNum() : queryCondition.getTotalNum());
         return JsonUtil.toJson(resultJsonObj);
+    }
+
+    private void submitNextTask(String cacheKey) throws LogQueryException {
+        int left = queryCondition.getTotalNum();
+        int start = cursor.getFetchIdx();
+        String shardId = SolrUtils.getCollWithShardId(cursor.getCollection(), cursor.getShardId());
+
+        ResultCnt resultCnt = QueryBatch.RESULTS_CNT_FOR_SHARDS.get(cacheKey);
+        Map<String, SolrQueryTask> taskMap = resultCnt.getTaskMap();
+        SolrQueryTask solrQueryTask = null;
+        int numFound = 0;
+        int cnt = 0;
+        while (left > 0) {
+            solrQueryTask = taskMap.get(shardId);
+            if (solrQueryTask == null) {
+                logger.info("Query session {}.{}. not solr task and task size is {}", cursor.getCacheKey(), shardId, taskMap.size());
+                shardId = getNextCollWithShard(shardId);
+                continue;
+            }
+            numFound = Integer.valueOf(solrQueryTask.getRows());
+            logger.info("Query session {},shardId {}, left={}, numFound={}, numFound-start={}", cursor.getCacheKey(), shardId, left, numFound, numFound - start);
+            if ((numFound - start) >= left) {
+                solrQueryTask.setStartRows(start);
+                solrQueryTask.setFetchRows(left);
+                cnt++;
+                solrHandlerFactory.submitQuerySolrTask(solrQueryTask);
+                break;
+            } else {
+                solrQueryTask.setStartRows(start);
+                solrQueryTask.setFetchRows(numFound - start);
+                cnt++;
+                solrHandlerFactory.submitQuerySolrTask(solrQueryTask);
+
+                left = left - (numFound - start);
+                start = 0;
+                shardId = getNextCollWithShard(shardId);
+                logger.info("Query session {},shardId {}, left={}, numFound={}, numFound-start={}", cursor.getCacheKey(), shardId, left, numFound, numFound - start);
+            }
+
+            if (taskMap.size() == 0) {
+                logger.info("taskMap size == 0");
+                break;
+            }
+        }
+        logger.info("Query session {}, total submit task size {}.", cursor.getCacheKey(), cnt);
     }
 
     private void checkTime(long waitStart) throws LogQueryException {
@@ -641,7 +703,7 @@ public class CursorRspProcessor implements RspProcess {
 
     private boolean isWalkingFinished(Cursor cursor, String collection, String collWithShardId, int idx, int jsonListSize)
             throws LogQueryException {
-        logger.debug("cursor {}, {},{}", cursor.toString(), collection, collWithShardId);
+        logger.debug("cursor {},{},{}", cursor.toString(), collection, collWithShardId);
         if (idx >= jsonListSize && maxCollShard.equals(collWithShardId) && collection.equals(maxCollection)) {
             return true;
         }
@@ -651,7 +713,10 @@ public class CursorRspProcessor implements RspProcess {
     private void updateCursorAndUpdateCache(Cursor cursor, String collection, String collWithShardId, int idx, int jsonListSize)
             throws LogQueryException {
         if (idx >= jsonListSize) {
-            QueryBatch.RESULTS_FOR_SHARDS.get(cursor.getCacheKey()).remove(collWithShardId);
+            String removeCollWithShard = SolrUtils.getPreCollWithShard(collWithShardId);
+            logger.warn("Query remove session {}, {}", cursor.getCacheKey(), removeCollWithShard);
+            QueryBatch.RESULTS_FOR_SHARDS.get(cursor.getCacheKey()).remove(removeCollWithShard);
+            QueryBatch.RESULTS_CNT_FOR_SHARDS.get(cursor.getCacheKey()).getTaskMap().remove(removeCollWithShard);
             cursor.setFetchIdx(0);
             if (maxCollShardSet.contains(collWithShardId)) {
                 collection = SolrUtils.getNextCollection(collection, maxCollection);
@@ -680,7 +745,18 @@ public class CursorRspProcessor implements RspProcess {
     	} else {
     		cursor.setFetchIdx(idx);
     		cursor.setShardId(SolrUtils.getShardId(collWithShardId));
+            logger.debug("Query session {} update cursor.", cursor.toString());
     	}
+    }
+
+    private String getNextCollWithShard(String collWithShard) throws LogQueryException {
+        String collection = SolrUtils.getCollection(collWithShard);
+        if (maxCollShardSet.contains(collWithShard)) {
+            collection = SolrUtils.getNextCollection(collection, maxCollection);
+            return SolrUtils.getCollWithShardId(collection, LogConfFactory.solrMinShardId);
+        } else {
+            return SolrUtils.getCollWithShardId(collection, SolrUtils.getNextShardId(SolrUtils.getShardId(collWithShard)));
+        }
     }
 }
 

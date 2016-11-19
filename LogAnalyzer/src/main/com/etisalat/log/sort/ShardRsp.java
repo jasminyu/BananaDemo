@@ -126,13 +126,14 @@ class ShardSortedQueue extends PriorityQueue<ShardRsp> {
             @Override
             public int compare(final ShardRsp o1, final ShardRsp o2) {
                 //noinspection unchecked
-                String a = sortVal(o1).toString();
-                String b = sortVal(o2).toString();
+                JsonElement jsonObj1 = sortVal(o1);
+                JsonElement jsonObj2 = sortVal(o2);
                 try {
-                    return -SortUtils.compare(sortField, sortVal(o1), sortVal(o2));
+                    return -SortUtils.compare(sortField, jsonObj1, jsonObj2);
                 } catch (Exception t) {
                     t.printStackTrace();
-                    System.out.println("ERROR a:" + a + ", b:" + b);
+                    System.out.println("ERROR " + sortField.getName() + " is null, compare " +
+                            (jsonObj1 == null ? "O1 is NULL." : jsonObj1) + "," + (jsonObj2 == null ? "O2 is NULL." : jsonObj2));
                     throw t;
                 }
             }

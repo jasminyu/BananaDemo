@@ -20,7 +20,7 @@ import java.util.concurrent.Future;
 public class HBaseQueryCursorHandler {
     private static Logger logger = LoggerFactory.getLogger(HBaseQueryCursorHandler.class);
   
-    private Table table;
+    private String tableName;
 
     private String cacheKey;
     private String collWithShard;
@@ -33,13 +33,7 @@ public class HBaseQueryCursorHandler {
     public HBaseQueryCursorHandler(String tableName, String cacheKey, String collWithShard) {
         AssertUtil.noneNull("HBaseQueryCursorHandler construct should not null", tableName);
 
-        try {
-            this.table = HBaseQueryHandlerFactory.connection.getTable(TableName.valueOf(tableName));
-        } catch (IOException e) {
-            logger.error("Query session {}, query {}, Get Table and IOException arised.", cacheKey, collWithShard, e);
-            return;
-        }
-
+        this.tableName = tableName;
         this.cacheKey = cacheKey;
         this.collWithShard = collWithShard;
     }
@@ -68,14 +62,6 @@ public class HBaseQueryCursorHandler {
         this.gets = gets;
     }
 
-    public Table getTable() {
-        return table;
-    }
-
-    public void setTable(Table table) {
-        this.table = table;
-    }
-
     public void submit() {
         if (gets == null || gets.isEmpty()) {
             logger.info("Query session {}, query {}, gets is empty and end.", cacheKey, collWithShard);
@@ -88,8 +74,10 @@ public class HBaseQueryCursorHandler {
                 logger.info("Query session {}, query {}, hbase data fetch {} gets task start", cacheKey, collWithShard, gets.size());
 
                 long start = System.currentTimeMillis();
-
+                Table table = null;
                 try {
+                    table = HBaseQueryHandlerFactory.connection.getTable(TableName.valueOf(tableName));
+
                     Result[] results = table.get(gets);
 
                     Map<String, String> resultJsonObjMap = new HashMap<String, String>();
@@ -108,7 +96,9 @@ public class HBaseQueryCursorHandler {
                     return new HBaseQueryCursorRsp(new HashMap<String, String>());
                 } finally {
                     try {
-                        table.close();
+                        if(table != null) {
+                            table.close();
+                        }
                     } catch (IOException e) {
                         logger.error(e.getMessage());
                         logger.warn("Query session {}, query {}, table close and IOException arised", cacheKey, collWithShard);

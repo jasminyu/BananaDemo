@@ -4,10 +4,6 @@ import org.apache.solr.common.util.NamedList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Created by y00226935 on 2016/11/14.
- */
-
 public class CacheStatsThread extends Thread {
 	private static final Logger logger = LoggerFactory.getLogger(CacheStatsThread.class);
 	
@@ -19,8 +15,8 @@ public class CacheStatsThread extends Thread {
 			} catch (InterruptedException e) {
 				
 			}
-			NamedList namedlist = QueryBatch.RESULTS_FOR_SHARDS.getStatistics();
-			logger.info("RESULTS_FOR_SHARDS: {}", namedlist.toString());
+			NamedList namedList = QueryBatch.RESULTS_FOR_SHARDS.getStatistics();
+			logger.info("RESULTS_FOR_SHARDS: {}", namedList.toString());
 		}
 	}
 	
