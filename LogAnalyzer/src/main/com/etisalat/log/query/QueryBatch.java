@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 
 public class QueryBatch {
-    public static final LRUCache<String, ConcurrentHashMap<String, List<JsonObject>>> RESULTS_FOR_SHARDS = new LRUCache<String, ConcurrentHashMap<String, List<JsonObject>>>();
+    public static final LRUCache<String, ConcurrentHashMap<String, List<String>>> RESULTS_FOR_SHARDS = new LRUCache<String, ConcurrentHashMap<String, List<String>>>();
     public static final LRUCache<String, ResultCnt> RESULTS_CNT_FOR_SHARDS = new LRUCache<String, ResultCnt>();
     public static final LRUCache<String, String> LRU_CACHE = new LRUCache<String, String>();
     public static final LRUCache<String, CacheQueryResTaskInfo> LRU_TASK_CACHE = new LRUCache<String, CacheQueryResTaskInfo>();
@@ -71,6 +71,9 @@ public class QueryBatch {
         if (LogConfFactory.queryPerShard) {
             RESULTS_FOR_SHARDS.init();
             RESULTS_CNT_FOR_SHARDS.init();
+            CacheStatsThread cacheStatsThread = new CacheStatsThread();
+            cacheStatsThread.setDaemon(true);
+            cacheStatsThread.start();
         }
         if (!LogConfFactory.queryPerShard && LogConfFactory.enablePaging) {
             LRU_CACHE.init();
@@ -639,12 +642,22 @@ public class QueryBatch {
                     LogConfFactory.solrMinShardId, 0);
             logger.info("Start to queryPerShards with query session {}", cursor.getCacheKey());
             queryPerShards(cursor, solrHandlerFactory, hbaseQueryHandlerFactory);
-            if (!queryCondition.isExportOp() && getRealReturnNum() == 0) {
-                return JsonUtil.toJson(LogConfFactory.solrQueryRspJsonObj);
-            }
         }
-
         ResultCnt resultCnt = RESULTS_CNT_FOR_SHARDS.get(cursor.getCacheKey());
+        
+        if (resultCnt ==null) {
+        	String errMsg = "No results for query session " + cursor.getCacheKey();
+        	logger.error(errMsg);
+        	throw new LogQueryException(errMsg);
+        }
+        
+        if (resultCnt.getTotalNum() == 0)  {
+        	this.realReturnNum = resultCnt.getTotalNum();
+        	return JsonUtil.toJson(queryCondition.isExportOp() ? 
+        			SolrUtils.getErrJsonObj("No query results for query session " + cursor.getCacheKey(), 500) :
+        			LogConfFactory.solrQueryRspJsonObj);
+        }
+        
         CursorRspProcessor rspProcessor = new CursorRspProcessor(queryCondition, cursor,
                resultCnt.getTotalNum(), resultCnt.getMaxCollWithShardSets());
         return rspProcessor.process();
@@ -679,14 +692,14 @@ public class QueryBatch {
                 queryCondition.getTotalReturnNum() < totalNumFound ? queryCondition.getTotalReturnNum() : totalNumFound;
 
         if (totalNumFound == 0) {
-            RESULTS_CNT_FOR_SHARDS.put(cursor.getCacheKey(), new ResultCnt(0, 0));
+            RESULTS_CNT_FOR_SHARDS.put(cursor.getCacheKey(), new ResultCnt(0));
             return;
         }
 
         logger.info("Query session {}, solr query string {} on collection {}", cursor.getCacheKey(), qString, builder.delete(0, 1).toString());
         logger.info("Query session {}, actual total return num {}", cursor.getCacheKey(), realReturnNum);
 
-        RESULTS_CNT_FOR_SHARDS.put(cursor.getCacheKey(), new ResultCnt(0, this.realReturnNum));
+        RESULTS_CNT_FOR_SHARDS.put(cursor.getCacheKey(), new ResultCnt(this.realReturnNum));
 
         Set<String> maxCollWithShardSets = new HashSet<String>();
 
@@ -730,7 +743,8 @@ public class QueryBatch {
         maxCollWithShardSets.add(querySolrTask.getShardId());
         RESULTS_CNT_FOR_SHARDS.get(cursor.getCacheKey()).setMaxCollWithShardSets(maxCollWithShardSets);
 
-        logger.warn("Query session {}, solr(javabin) took {} ms", cursor.getCacheKey(), System.currentTimeMillis() - start);
+        logger.warn("Query session {}, solr(javabin) took {} ms", cursor.getCacheKey(),
+        		System.currentTimeMillis() - start);
         logger.info("End to queryPerShards with query session {}.", cursor.getCacheKey());
     }
 

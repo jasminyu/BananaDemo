@@ -1,6 +1,7 @@
 package com.etisalat.log.query;
 
 import com.etisalat.log.common.AssertUtil;
+import com.etisalat.log.common.JsonUtil;
 import com.etisalat.log.config.LogConfFactory;
 import com.google.gson.JsonObject;
 import org.apache.hadoop.hbase.TableName;
@@ -91,7 +92,7 @@ public class HBaseQueryCursorHandler {
                 try {
                     Result[] results = table.get(gets);
 
-                    Map<String, JsonObject> resultJsonObjMap = new HashMap<String, JsonObject>();
+                    Map<String, String> resultJsonObjMap = new HashMap<String, String>();
 
                     if (results == null) {
                         return new HBaseQueryCursorRsp(resultJsonObjMap);
@@ -104,7 +105,7 @@ public class HBaseQueryCursorHandler {
                     return hbaseQueryRsp;
                 } catch (Exception e) {
                     logger.error("Query session {}, query {}, hbase data fetch task failed and IOException arised", cacheKey, collWithShard, e);
-                    return new HBaseQueryCursorRsp(new HashMap<String, JsonObject>());
+                    return new HBaseQueryCursorRsp(new HashMap<String, String>());
                 } finally {
                     try {
                         table.close();
@@ -119,7 +120,7 @@ public class HBaseQueryCursorHandler {
         pending.add(completionService.submit(task));
     }
 
-    private void addResultToJsonMap(Map<String, JsonObject> jsonObjectMap, Result[] results) {
+    private void addResultToJsonMap(Map<String, String> jsonObjectMap, Result[] results) {
         JsonObject jsonObj = null;
         for (int i = 0; i < results.length; ++i) {
             Result result = results[i];
@@ -142,7 +143,7 @@ public class HBaseQueryCursorHandler {
                         LogConfFactory.columnQualifiersBytesMap.get(qualifier)));
             }
 
-            jsonObjectMap.put(rowKey, jsonObj);
+            jsonObjectMap.put(rowKey, JsonUtil.toJson(jsonObj));
         }
     }
 }

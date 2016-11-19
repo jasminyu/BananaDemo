@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.etisalat.log.common.JsonUtil;
 import org.apache.lucene.util.BytesRef;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,18 +76,21 @@ public class SortUtils {
 
     }
 
-    public static void sortSingleShardRsp(final List<SortField> fields, List<JsonObject> data) {
+    public static void sortSingleShardRsp(final List<SortField> fields, List<String> data) {
         AssertUtil.noneNull("invalid arguments", fields, data);
         if (fields.size() == 0 || data.size() == 0) {
             return;
         }
-        Collections.sort(data, new Comparator<JsonObject>() {
-            public int compare(JsonObject o1, JsonObject o2) {
+        Collections.sort(data, new Comparator<String>() {
+            public int compare(String o1, String o2) {
+            	JsonObject jsonObject1 = JsonUtil.fromJson(o1, JsonObject.class);
+            	JsonObject jsonObject2 = JsonUtil.fromJson(o2, JsonObject.class);
+            	
                 int ret = 0;
                 SortField sortField = null;
                 for (int i = 0; i < fields.size() && ret == 0; i++) {
                     sortField = fields.get(i);
-                    ret = SortUtils.compare(sortField, o1.get(sortField.getName()), o2.get(sortField.getName()));
+                    ret = SortUtils.compare(sortField, jsonObject1.get(sortField.getName()), jsonObject2.get(sortField.getName()));
                 }
                 return ret;
             }
@@ -95,38 +99,38 @@ public class SortUtils {
 
     public static JsonArray sortSingleShardRsp(List<SortField> fields, JsonArray jsonArray) {
         AssertUtil.noneNull("invalid arguments", fields, jsonArray);
-        List<JsonObject> data = new ArrayList<JsonObject>();
+        List<String> data = new ArrayList<String>();
         for (JsonElement jsonElement : jsonArray) {
-            data.add(jsonElement.getAsJsonObject());
+            data.add(JsonUtil.toJson(jsonElement.getAsJsonObject()));
         }
         sortSingleShardRsp(fields, data);
 
         JsonArray resArr = new JsonArray();
-        for (JsonObject jsonElement : data) {
-            resArr.add(jsonElement);
+        for (String jsonElement : data) {
+            resArr.add(JsonUtil.fromJson(jsonElement, JsonObject.class));
         }
 
         return resArr;
     }
 
-    public static List<JsonObject> sort(Map<String, List<JsonObject>> shardResults, List<SortField> fields, int size,
+    public static List<JsonObject> sort(Map<String, List<String>> shardResults, List<SortField> fields, int size,
             String uniqueKey) {
         // TODO YU check the params
         if (fields == null || fields.isEmpty()) {
             return null;
         }
 
-        Set<Map.Entry<String, List<JsonObject>>> entrySet = shardResults.entrySet();
-        List<JsonObject> results = null;
+        Set<Map.Entry<String, List<String>>> entrySet = shardResults.entrySet();
+        List<String> results = null;
         JsonObject doc = null;
         String shard = null;
         long start = System.currentTimeMillis();
         ShardSortedQueue queue = new ShardSortedQueue(fields, size);
-        for (Map.Entry<String, List<JsonObject>> entry : entrySet) {
+        for (Map.Entry<String, List<String>> entry : entrySet) {
             shard = entry.getKey();
             results = entry.getValue();
             for (int i = 0; i < results.size(); i++) {
-                doc = results.get(i);
+                doc = JsonUtil.fromJson(results.get(i), JsonObject.class);
                 ShardRsp shardRsp = new ShardRsp(fields, results);
                 shardRsp.id = doc.get(uniqueKey).getAsString();
                 shardRsp.setShard(shard);
@@ -142,7 +146,7 @@ public class SortUtils {
                 logger.debug("shardrsp == null");
                 continue;
             }
-            sortedResults.add(shardRsp.getSortFieldValues().get(shardRsp.orderInShard));
+            sortedResults.add(JsonUtil.fromJson(shardRsp.getSortFieldValues().get(shardRsp.orderInShard), JsonObject.class));
         }
 
         long timeCost = (System.currentTimeMillis() - start);

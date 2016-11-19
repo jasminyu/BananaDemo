@@ -1,5 +1,6 @@
 package com.etisalat.log.sort;
 
+import com.etisalat.log.common.JsonUtil;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
@@ -12,9 +13,9 @@ public class ShardRsp {
     public int orderInShard;
     public String id;
     public List<SortField> fields;
-    List<JsonObject> sortFieldValues;
+    List<String> sortFieldValues;
 
-    public ShardRsp(List<SortField> fields, List<JsonObject> sortFieldValues) {
+    public ShardRsp(List<SortField> fields, List<String> sortFieldValues) {
         this.fields = fields;
         this.sortFieldValues = sortFieldValues;
     }
@@ -43,11 +44,11 @@ public class ShardRsp {
         this.shard = shard;
     }
 
-    public List<JsonObject> getSortFieldValues() {
+    public List<String> getSortFieldValues() {
         return sortFieldValues;
     }
 
-    public void setSortFieldValues(List<JsonObject> sortFieldValues) {
+    public void setSortFieldValues(List<String> sortFieldValues) {
         this.sortFieldValues = sortFieldValues;
     }
 
@@ -148,7 +149,7 @@ class ShardSortedQueue extends PriorityQueue<ShardRsp> {
         }
 
         JsonElement sortVal(ShardRsp shardDoc) {
-            return shardDoc.sortFieldValues.get(shardDoc.orderInShard).get(fieldName);
+            return JsonUtil.fromJson(shardDoc.sortFieldValues.get(shardDoc.orderInShard), JsonObject.class).get(fieldName);
         }
     }
 

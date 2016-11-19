@@ -6,7 +6,6 @@ import java.util.Set;
 
 public class ResultCnt {
     private String collWithShardId;
-    private long fetchNum;
     private long totalNum;
 
     private Set<String> maxCollWithShardSets = null;
@@ -16,17 +15,8 @@ public class ResultCnt {
         this.totalNum = totalNum;
     }
 
-    public ResultCnt(long fetchNum, long totalNum) {
-        this.fetchNum = fetchNum;
+    public ResultCnt(long totalNum) {
         this.totalNum = totalNum;
-    }
-
-    public long getFetchNum() {
-        return fetchNum;
-    }
-
-    public void setFetchNum(long fetchNum) {
-        this.fetchNum = fetchNum;
     }
 
     public long getTotalNum() {

@@ -1,5 +1,6 @@
 package com.etisalat.log.sort;
 
+import com.etisalat.log.common.JsonUtil;
 import com.etisalat.log.config.LogConfFactory;
 import com.etisalat.log.query.ResultCnt;
 import com.google.gson.JsonObject;
@@ -15,7 +16,7 @@ public class SortTest {
         logger.info("-------------------------------");
         LogConfFactory.init();
         logger.info("-------------------------------");
-        testSortResultFound();
+        testSort();
     }
 
     public static void print(Map<ResultCnt, String> reqUrlMap) {
@@ -52,11 +53,11 @@ public class SortTest {
     }
 
     private static void testSort() {
-        Map<String, List<JsonObject>> shardResults = new HashMap<String, List<JsonObject>>();
+        Map<String, List<String>> shardResults = new HashMap<String, List<String>>();
         List<SortField> fields = new ArrayList<SortField>();
         fields.add(new SortField("timestamp", true, SortField.Type.long_n));
 
-        Map<String, JsonObject> map = new HashMap<String, JsonObject>();
+        Map<String, String> map = new HashMap<String, String>();
         System.out.println("--------- zzzz --------");
         shardResults.put("zzzz", getJsonObjList(fields, 20, map));
         System.out.println("--------- yyyy --------");
@@ -68,15 +69,15 @@ public class SortTest {
         }
     }
 
-    private static List<JsonObject> getJsonObjList(List<SortField> fields, int size, Map<String, JsonObject> map) {
-        List<JsonObject> jsonObjects = new ArrayList<JsonObject>();
+    private static List<String> getJsonObjList(List<SortField> fields, int size, Map<String, String> map) {
+        List<String> jsonObjects = new ArrayList<String>();
 
         for (int i = 0; i < size; i++) {
             JsonObject jsonObject = new JsonObject();
             jsonObject.addProperty("rowkey", randomString());
             jsonObject.addProperty("timestamp", Long.valueOf(randomInteger(10)));
-            jsonObjects.add(jsonObject);
-            map.put((String) jsonObject.get("rowkey").getAsString(), jsonObject);
+            jsonObjects.add(JsonUtil.toJson(jsonObject));
+            map.put((String) jsonObject.get("rowkey").getAsString(), JsonUtil.toJson(jsonObject));
         }
         SortUtils.sortSingleShardRsp(fields, jsonObjects);
 

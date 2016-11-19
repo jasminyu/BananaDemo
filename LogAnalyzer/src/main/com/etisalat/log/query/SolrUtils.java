@@ -104,8 +104,7 @@ public class SolrUtils {
         return;
     }
     
-    public static JsonObject getErrJsonObj(String msg, int msgCode) {
-    	
+    public static JsonObject getErrJsonObj(String msg, int msgCode) {  	
     	JsonObject rspJson = new JsonObject();
     	JsonObject errorJson =new JsonObject();
     	JsonObject responseJson =new JsonObject();

@@ -383,7 +383,7 @@ public class LogDispatchFilter implements Filter {
                 out.close();
             }
         } catch (LogQueryException e) {
-            logger.error(e.getMessage() + "," + e.getMsgCode());
+            logger.error("Query collections:{}, errMsg:{}", queryCondition.getCollections(), e.getMessage(), e.getMsgCode());
             SolrUtils.handSelectReqException(e.getMessage(), e.getMsgCode(), response);
             return;
         } finally {
@@ -482,7 +482,7 @@ public class LogDispatchFilter implements Filter {
             return;
         }
 
-        logger.debug(httpRsp);
+        
 
         if (null == httpRsp) {
             logger.warn("Query's Result is null!");
@@ -490,6 +490,11 @@ public class LogDispatchFilter implements Filter {
         }
 
         if (queryCondition.isExportOp()) {
+        	
+        	if(queryBatch.getRealReturnNum() == 0) {
+        		SolrUtils.handSelectReqException("No query results to be downloaded.", 500, response);
+        		return;
+        	}
             String dirName = queryCondition.getDir();
             String gzName = LogConfFactory.exportFilePath + dirName + ".tar.gz";
             TarGZCompress.createTarGZ(LogConfFactory.exportFilePath + dirName, gzName);
@@ -498,6 +503,7 @@ public class LogDispatchFilter implements Filter {
             logger.warn("download res:{}", resLoc);
             httpRsp = "{\"url\":\"" + resLoc + "\"}";
         }
+        logger.debug(httpRsp);
 
         /************************************************************/
         PrintWriter out;

@@ -104,37 +104,9 @@ public class LRUCache<K, V> implements Cache<K, V> {
         if (cache == null)
             return lst;
         ConcurrentLRUCache.Stats stats = cache.getStats();
-        long lookups = stats.getCumulativeLookups();
-        long hits = stats.getCumulativeHits();
-        long inserts = stats.getCumulativePuts();
-        long evictions = stats.getCumulativeEvictions();
         long size = stats.getCurrentSize();
-        long clookups = 0;
-        long chits = 0;
-        long cinserts = 0;
-        long cevictions = 0;
-
         // NOTE: It is safe to iterate on a CopyOnWriteArrayList
-        for (ConcurrentLRUCache.Stats statistiscs : statsList) {
-            clookups += statistiscs.getCumulativeLookups();
-            chits += statistiscs.getCumulativeHits();
-            cinserts += statistiscs.getCumulativePuts();
-            cevictions += statistiscs.getCumulativeEvictions();
-        }
-
-        lst.add("lookups", lookups);
-        lst.add("hits", hits);
-        lst.add("hitratio", calcHitRatio(lookups, hits));
-        lst.add("inserts", inserts);
-        lst.add("evictions", evictions);
         lst.add("size", size);
-
-        lst.add("cumulative_lookups", clookups);
-        lst.add("cumulative_hits", chits);
-        lst.add("cumulative_hitratio", calcHitRatio(clookups, chits));
-        lst.add("cumulative_inserts", cinserts);
-        lst.add("cumulative_evictions", cevictions);
-
         return lst;
     }
 
