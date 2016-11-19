@@ -70,6 +70,9 @@ public class CommonRspProcessor implements RspProcess {
         JsonArray rspJsonList = new JsonArray();
         rspJson.add("docs", rspJsonList);
         rspJson.addProperty("nums", realReturnNum);
+        if(queryCondition.getNextCursorMark() != null) {
+        	rspJson.addProperty("nextCursorMark", queryCondition.getNextCursorMark());
+        }
         Map<String, JsonObject> rspResults = collectHBaseQueryRsp();
         int docNum = 0;
         JsonObject jsonObj = null;

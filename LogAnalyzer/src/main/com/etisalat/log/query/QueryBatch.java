@@ -367,12 +367,15 @@ public class QueryBatch {
     public String startQueryBySolrj(HBaseQueryHandlerFactory queryHBaseHandlerFactory,
             SolrQueryHandlerFactory solrQueryHandlerFactory) throws LogQueryException {
         logger.info("Start to query batch by solrj.");
-        if (!LogConfFactory.queryPerShard || queryCondition.queryInCloudMode()) {
-            return startQuery(queryHBaseHandlerFactory);
-        } else {
-            return queryPerShards(solrQueryHandlerFactory, queryHBaseHandlerFactory);
-        }
+        if ((queryCondition.isExportOp() || LogConfFactory.queryPerShard) && !queryCondition.queryInCloudMode()) {
+        	
+        	return queryPerShards(solrQueryHandlerFactory, queryHBaseHandlerFactory);
+        } 
 
+        if (queryCondition.queryInCloudMode()) {
+        	return startQuery(queryHBaseHandlerFactory);
+        }
+        throw new LogQueryException("Does not support!");
     }
 
     public String startQuery(HBaseQueryHandlerFactory queryHBaseHandlerFactory) throws LogQueryException {
