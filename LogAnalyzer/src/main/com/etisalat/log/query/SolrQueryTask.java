@@ -278,6 +278,7 @@ public class SolrQueryTask implements Runnable {
                     jsonObject.addProperty(LogConfFactory.rowkeyName, rowKey);
                     jsonStr = jsonObject.toString();
                 }
+
                 jsonObjects.add(jsonStr);
             }
         }
@@ -322,7 +323,7 @@ public class SolrQueryTask implements Runnable {
         }
 
         if (Integer.valueOf(rows) != jsonObjects.size()) {
-            logger.warn("Query session {}, query {}, solr result size {}, but hbase result size is {} ", cacheKey, shardId, rows, jsonObjects.size());
+            logger.warn("Query session {}, query {}, solr result size {}, but hbase result size is {}.", cacheKey, shardId, rows, jsonObjects.size());
         }
 
         logger.info("Query session {}, query {}, add {} record to cache.", cacheKey, shardId, jsonObjects.size());

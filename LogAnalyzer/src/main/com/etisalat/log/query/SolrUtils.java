@@ -285,7 +285,7 @@ public class SolrUtils {
             return collection;
         }
         String dateStr = collection.substring(LogConfFactory.collectionPrefixLen);
-        String newCollection = LogConfFactory.collectionPrefix + getNextORPreDateString(dateStr, true);
+        String newCollection = LogConfFactory.collectionPrefix + getNextOrPreDateString(dateStr, true);
         if (newCollection.compareTo(maxCollection) >= 0) {
             return maxCollection;
         } else {
@@ -295,10 +295,10 @@ public class SolrUtils {
 
     protected static String getPreCollection(String collection) throws LogQueryException {
         String dateStr = collection.substring(LogConfFactory.collectionPrefixLen);
-        return LogConfFactory.collectionPrefix + getNextORPreDateString(dateStr, false);
+        return LogConfFactory.collectionPrefix + getNextOrPreDateString(dateStr, false);
     }
 
-    private static String getNextORPreDateString(String dateStr, boolean next) throws LogQueryException {
+    private static String getNextOrPreDateString(String dateStr, boolean next) throws LogQueryException {
         Calendar rightNow = Calendar.getInstance();
         Date date = null;
         try {
@@ -323,14 +323,14 @@ public class SolrUtils {
         return "_shard" + (getIdOfShardId(shardId) + 1);
     }
 
-    protected static String getPreCollWithShard(String collWithShardId) throws LogQueryException {
+    protected static String getPreCollWithShardId(String collWithShardId) throws LogQueryException {
         String shardIdStr = getShardId(collWithShardId);
         String collection = getCollection(collWithShardId);
         int id = getIdOfShardId(shardIdStr) - 1;
         if (id <= 0) {
             return getCollWithShardId(getPreCollection(collection), LogConfFactory.solrMaxShardId);
         } else {
-            return getCollWithShardId(collection, "_shard_" + id);
+            return getCollWithShardId(collection, "_shard" + id);
         }
     }
 

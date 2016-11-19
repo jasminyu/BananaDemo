@@ -11,7 +11,6 @@ import com.etisalat.log.sort.SortUtils;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import org.apache.solr.client.solrj.SolrQuery;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -625,14 +624,14 @@ public class CursorRspProcessor implements RspProcess {
         rspJsonObj.addProperty("nums", realReturnNum);
         
         if (realReturnNum != 0 && resultJsonObjArray.size() == 0 ) {
-            logger.error("Query remove session {} for no results.", cacheKey);
+            logger.warn("Query remove session {} for no results.", cacheKey);
         	QueryBatch.RESULTS_FOR_SHARDS.remove(cacheKey);
         	QueryBatch.RESULTS_CNT_FOR_SHARDS.remove(cacheKey);
         	logger.error("Query session {}, failed to get data, query {}, but cannot fetch the query data.", cacheKey,realReturnNum);
         	return JsonUtil.toJson(SolrUtils.getErrJsonObj("failed to query data.", 500));
         }
         if(rows > realReturnNum || walkingFinished) {
-            logger.error("Query remove session {} for walk finished.", cacheKey);
+            logger.warn("Query remove session {} for walk finished.", cacheKey);
             rspJsonObj.addProperty("nextCursorMark", "");
             QueryBatch.RESULTS_FOR_SHARDS.remove(cacheKey);
             QueryBatch.RESULTS_CNT_FOR_SHARDS.remove(cacheKey);
@@ -641,7 +640,7 @@ public class CursorRspProcessor implements RspProcess {
             submitNextTask(cacheKey);
         }
 
-        logger.info("Query session {} fro rows {}, end process display.", cacheKey,
+        logger.info("Query session {} for rows {}, end process display.", cacheKey,
         		queryCondition.getTotalReturnNum() !=0 ? queryCondition.getTotalReturnNum() : queryCondition.getTotalNum());
         return JsonUtil.toJson(resultJsonObj);
     }
@@ -659,12 +658,12 @@ public class CursorRspProcessor implements RspProcess {
         while (left > 0) {
             solrQueryTask = taskMap.get(shardId);
             if (solrQueryTask == null) {
-                logger.info("Query session {}.{}. not solr task and task size is {}", cursor.getCacheKey(), shardId, taskMap.size());
+                logger.info("Query session {}, shardId {}, not solr task and task size is {}", cursor.getCacheKey(), shardId, taskMap.size());
                 shardId = getNextCollWithShard(shardId);
                 continue;
             }
             numFound = Integer.valueOf(solrQueryTask.getRows());
-            logger.info("Query session {},shardId {}, left={}, numFound={}, numFound-start={}", cursor.getCacheKey(), shardId, left, numFound, numFound - start);
+            logger.info("Query session {}, shardId {}, left={}, numFound={}, numFound-start={}", cursor.getCacheKey(), shardId, left, numFound, numFound - start);
             if ((numFound - start) >= left) {
                 solrQueryTask.setStartRows(start);
                 solrQueryTask.setFetchRows(left);
@@ -680,7 +679,7 @@ public class CursorRspProcessor implements RspProcess {
                 left = left - (numFound - start);
                 start = 0;
                 shardId = getNextCollWithShard(shardId);
-                logger.info("Query session {},shardId {}, left={}, numFound={}, numFound-start={}", cursor.getCacheKey(), shardId, left, numFound, numFound - start);
+                logger.info("Query session {}, shardId {}, left={}, numFound={}, numFound-start={}", cursor.getCacheKey(), shardId, left, numFound, numFound - start);
             }
 
             if (taskMap.size() == 0) {
@@ -703,7 +702,7 @@ public class CursorRspProcessor implements RspProcess {
 
     private boolean isWalkingFinished(Cursor cursor, String collection, String collWithShardId, int idx, int jsonListSize)
             throws LogQueryException {
-        logger.debug("cursor {},{},{}", cursor.toString(), collection, collWithShardId);
+        logger.debug("cursor {}, {}, {}", cursor.toString(), collection, collWithShardId);
         if (idx >= jsonListSize && maxCollShard.equals(collWithShardId) && collection.equals(maxCollection)) {
             return true;
         }
@@ -713,7 +712,7 @@ public class CursorRspProcessor implements RspProcess {
     private void updateCursorAndUpdateCache(Cursor cursor, String collection, String collWithShardId, int idx, int jsonListSize)
             throws LogQueryException {
         if (idx >= jsonListSize) {
-            String removeCollWithShard = SolrUtils.getPreCollWithShard(collWithShardId);
+            String removeCollWithShard = SolrUtils.getPreCollWithShardId(collWithShardId);
             logger.warn("Query remove session {}, {}", cursor.getCacheKey(), removeCollWithShard);
             QueryBatch.RESULTS_FOR_SHARDS.get(cursor.getCacheKey()).remove(removeCollWithShard);
             QueryBatch.RESULTS_CNT_FOR_SHARDS.get(cursor.getCacheKey()).getTaskMap().remove(removeCollWithShard);
@@ -749,13 +748,13 @@ public class CursorRspProcessor implements RspProcess {
     	}
     }
 
-    private String getNextCollWithShard(String collWithShard) throws LogQueryException {
-        String collection = SolrUtils.getCollection(collWithShard);
-        if (maxCollShardSet.contains(collWithShard)) {
+    private String getNextCollWithShard(String collWithShardId) throws LogQueryException {
+        String collection = SolrUtils.getCollection(collWithShardId);
+        if (maxCollShardSet.contains(collWithShardId)) {
             collection = SolrUtils.getNextCollection(collection, maxCollection);
             return SolrUtils.getCollWithShardId(collection, LogConfFactory.solrMinShardId);
         } else {
-            return SolrUtils.getCollWithShardId(collection, SolrUtils.getNextShardId(SolrUtils.getShardId(collWithShard)));
+            return SolrUtils.getCollWithShardId(collection, SolrUtils.getNextShardId(SolrUtils.getShardId(collWithShardId)));
         }
     }
 }

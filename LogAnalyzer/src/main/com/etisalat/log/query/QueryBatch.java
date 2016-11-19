@@ -746,7 +746,8 @@ public class QueryBatch {
             actualFetchRows = Long.valueOf((long) Math
                     .ceil((float) resultCnt.getTotalNum() / totalNumFound * queryCondition.getTotalReturnNum())) + LogConfFactory.solrQueryThreshold;
 
-            querySolrTask.setRows(resultCnt.getTotalNum() <= actualFetchRows ? String.valueOf(resultCnt.getTotalNum()) : String.valueOf(actualFetchRows));
+            querySolrTask.setRows(resultCnt.getTotalNum() <= actualFetchRows ? String.valueOf(resultCnt.getTotalNum()) :
+                    String.valueOf(actualFetchRows));
 
             if (queryCondition.isExportOp()) {
                 solrHandlerFactory.submitQuerySolrTask(querySolrTask);
@@ -761,12 +762,12 @@ public class QueryBatch {
                 left = left - querySolrTask.getFetchRows();
                 solrHandlerFactory.submitQuerySolrTask(querySolrTask);
                 if(numFound > querySolrTask.getFetchRows()) {
-                    logger.info("Query session {}, with shardId {}, rows {}, add to task to lazy fetch.",
+                    logger.info("Query session {}, with shardId {}, rows {} add to task to lazy fetch.",
                             querySolrTask.getCacheKey(), querySolrTask.getShardId(), querySolrTask.getRows());
                     taskMap.put(querySolrTask.getShardId(), querySolrTask);
                 }
             } else {
-                logger.info("Query session {}, with shardId {}, rows {}, add to task to lazy fetch.",
+                logger.info("Query session {}, with shardId {}, rows {} add to task to lazy fetch.",
                         querySolrTask.getCacheKey(), querySolrTask.getShardId(), querySolrTask.getRows());
                 taskMap.put(querySolrTask.getShardId(), querySolrTask);
             }
