@@ -215,9 +215,11 @@ function (angular, app, _, moment, kbn, $) {
           $scope.time.to;
       }
 
+      /*
       if (from.valueOf() >= to.valueOf()) {
         from = moment(to.valueOf() - 1000);
       }
+      */
 
       // Fix for SILK-4 and SILK-29 bugs
       // This $timeout function causes the timepicker skip-back-one-day bugs.
