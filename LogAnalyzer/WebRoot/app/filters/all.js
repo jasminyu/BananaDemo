@@ -73,18 +73,25 @@ define(['angular', 'jquery', 'underscore','showdown'], function(angular, $, _,Sh
       if(!_.isString(text)) {
         return text;
       } else {
-        _.each(text.match(r1), function() {
-          t1 = text.replace(r1, "<a href=\"$1\" target=\"_blank\">$1</a>");
+        if(text.match(r1)){
+          _.each(text.match(r1), function() {
+          t1 = "<a href='" + text +"' target = '_blank' >" + text + "</a>";
         });
-        text = t1 || text;
-        _.each(text.match(r2), function() {
+           return t1;
+        }
+       
+        if(text.match(r2)){
+          _.each(text.match(r2), function() {
           t2 = text.replace(r2, "$1<a href=\"http://$2\" target=\"_blank\">$2</a>");
         });
-        text = t2 || text;
-        _.each(text.match(r3), function() {
+          return t2;
+        }
+        if(text.match(r3)){
+          _.each(text.match(r3), function() {
           t3 = text.replace(r3, "<a href=\"mailto:$1\">$1</a>");
         });
-        text = t3 || text;
+          return t3;
+        }
         return text;
       }
     };
