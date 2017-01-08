@@ -24,6 +24,10 @@ public class LogConstants {
     public static final String COLUMN_ROWKEY = "column.rowkey";
 
     public static final String COLUMN_QUALIFIERS = "column.qualifiers.mapping";
+    
+    //add by xfx
+    public static final String COLUMN_FULLNAME_QUALIFIERS = "column.qualifiers.fullname.mapping";
+    //add by xfx
 
     public static final String SEARCH_SERVER_URL = "search.server.url";
 
