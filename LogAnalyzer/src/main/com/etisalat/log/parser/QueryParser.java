@@ -1,6 +1,7 @@
 package com.etisalat.log.parser;
 
 import com.etisalat.log.common.DateMathParser;
+import com.etisalat.log.common.LogQueryException;
 import com.etisalat.log.common.WTType;
 import com.etisalat.log.config.LogConfFactory;
 import com.etisalat.log.query.SolrUtils;
@@ -36,7 +37,11 @@ public class QueryParser {
 
             if (2 == paramPair.length && null != paramPair[0] && null != paramPair[1]) {
                 if (param.contains("fq=" + LogConfFactory.fieldTimestamp + ":[")) {
-                    spanTime = QueryParser.timePick(paramPair[1]);
+                    try {
+						spanTime = QueryParser.timePick(paramPair[1]);
+					} catch (LogQueryException e) {
+						SolrUtils.handSelectReqException(e.getMessage(), e.getMsgCode(), response);
+					}
                     break;
                 }
             }
@@ -125,11 +130,19 @@ public class QueryParser {
                         throw new IOException("query condition sort desc is invalid.");
                     }
                     String solrField = LogConfFactory.columnQualifiersMap.get(tmpArr[0]);
+                    //add by xfx
+                    if(solrField == null) {
+                    	solrField = LogConfFactory.fieldTimestamp;
+                    }
                     if (tmpArr[0].equals(LogConfFactory.uniqueKey)) {
                         type = LogConfFactory.fieldsMap.get(tmpArr[0]);
-                    } else {
+                    } else if(tmpArr[0].equals(LogConfFactory.fieldTimestamp)) {
+                    	type = SortField.Type.tdate;
+                    }
+                    else {
                         type = LogConfFactory.fieldsMap.get(solrField);
                     }
+                    //add by xfx
 
                     if (type == null) {
                         throw new IOException("sort fields " + tmpArr[0] + " mapped to solr field " + solrField
@@ -192,7 +205,8 @@ public class QueryParser {
         }
 
         String uniqueKeySort = null;
-        if (queryCondition.getTotalNum() >= LogConfFactory.displaySizeUseUI || LogConfFactory.enablePaging) {
+        if ((queryCondition.getTotalNum()!= 0) && !LogConfFactory.queryPerShard &&
+        		(queryCondition.getTotalNum()>= LogConfFactory.displaySizeUseUI || LogConfFactory.enablePaging)) {
             queryCondition.setNeedUseCursor(true);
             if (queryCondition.isUniqueKeySort()) {
                 uniqueKeySort = sortStrList.get(uniqueKeySortStrIdx);
@@ -237,7 +251,7 @@ public class QueryParser {
         }
     }
 
-    private static QueryCondition timePick(String fqString) {
+    private static QueryCondition timePick(String fqString) throws LogQueryException {
         logger.debug("fqString : {}.", fqString);
         QueryCondition spanTime = new QueryCondition();
         if (StringUtils.isBlank(fqString)) {
@@ -289,7 +303,7 @@ public class QueryParser {
         return spanTime;
     }
 
-    private static QueryCondition processRelativeMode(String fqString) {
+    private static QueryCondition processRelativeMode(String fqString) throws LogQueryException {
         String strSpan = null;
         DateMathParser dateMathParser = new DateMathParser();
 
@@ -332,7 +346,7 @@ public class QueryParser {
         return spanTime;
     }
 
-    private static QueryCondition processSinceMode(String fqString) {
+    private static QueryCondition processSinceMode(String fqString) throws LogQueryException {
         DateMathParser dateMathParser = new DateMathParser();
         String startTime, endTime;
         long querySpan;
@@ -364,7 +378,7 @@ public class QueryParser {
         return spanTime;
     }
 
-    private static QueryCondition processAbsoluteMode(String fqString) {
+    private static QueryCondition processAbsoluteMode(String fqString) throws LogQueryException {
         String startTime, endTime;
         long querySpan;
 
