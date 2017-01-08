@@ -272,7 +272,7 @@ public class DateMathParser {
         return localTime;
     }
 
-    public static long getSpanDays(String startTime, String endTime) throws ParseException {
+    public static long getSpanDays(String startTime, String endTime) throws ParseException , LogQueryException {
         SimpleDateFormat localTimeFormater = new SimpleDateFormat(localTimePatten);
         SimpleDateFormat localDateFormater = new SimpleDateFormat(localDatePatten);
 
@@ -283,6 +283,9 @@ public class DateMathParser {
         try {
             tmStartTime = localTimeFormater.parse(startTime);
             tmEndTime = localTimeFormater.parse(endTime);
+	    if(tmStartTime.getTime() >= tmEndTime.getTime()) {
+            	throw new LogQueryException("The start time must be earlier then the end time.", 509);
+            }
             //spanDays = (tmEndTime.getTime() - tmStartTime.getTime()) / (24 * 60 * 60 * 1000);
             String strTmpStartDate = localDateFormater.format(tmStartTime);
             String strTmpEndDate = localDateFormater.format(tmEndTime);
