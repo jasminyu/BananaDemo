@@ -179,9 +179,9 @@ public class SolrQueryTask implements Runnable {
     private void fetchResultFromHBase(HBaseQueryHandlerFactory queryHBaseHandlerFactory, QueryResponse queryResponse) {
         SolrDocumentList results = queryResponse.getResults();
 
-        int hbaseSize = (results.size() < LogConfFactory.hbaseBatchSize * 10 ?
+        int hbaseSize = qCondition.isExportOp() ? LogConfFactory.hbaseBatchSize : ((results.size() < LogConfFactory.hbaseBatchSize * 10 ?
                 LogConfFactory.hbaseBatchMinSize :
-                LogConfFactory.hbaseBatchSize);
+                LogConfFactory.hbaseBatchSize));
 
         logger.debug("Query session {}, query {}, get hbase row key with hbase batch size {}, result size {}", cacheKey, shardId, hbaseSize, 
         		results.size());
@@ -301,7 +301,7 @@ public class SolrQueryTask implements Runnable {
         String jsonStr = null;
         int resSize = jsonObjectsMap.size();
         JsonObject jsonObject = new JsonObject();
-        if (resSize != 0) {
+        if (rowKeyList.size() > 0 || resSize != 0) {
             int i = startRows;
             String rowKey = null;
             for (; i < jsonObjects.size(); i++) {
