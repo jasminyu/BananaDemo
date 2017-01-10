@@ -121,43 +121,75 @@ public class XmlWriter {
         Set<Map.Entry<String, JsonElement>> entrySet = jsonObject.entrySet();
         String fieldName = null;
         String val = null;
-        SortField.Type type = null;
+        //add by xfx
+        //SortField.Type type = null;
         for (Map.Entry<String, JsonElement> entry : entrySet) {
             fieldName = entry.getKey();
             val = entry.getValue() instanceof JsonNull ? null : entry.getValue().getAsString();
-            type = LogConfFactory.columnQualifiersTypeMap.get(fieldName);
-            if (val == null || type == null) {
-                writeStr(fieldName, val == null ? "" : val, true);
-                continue;
+            //type = LogConfFactory.columnQualifiersTypeMap.get(fieldName);
+            if(fieldName == null) {
+            	fieldName = "";
             }
+            if(val == null) {
+            	val = "";
+            }
+            val = val.replaceAll("&", "&amp;");
+            val = val.replaceAll("<", "&lt;");
+            val = val.replaceAll(">", "&gt;");
+            val = val.replaceAll("\"", "&quot;");
+            val = val.replaceAll("'", "&apos;");
+            writeCol(fieldName, val);
+            
+//            if (val == null || type == null) {
+//                writeStr(fieldName, val == null ? "" : val, true);
+//                continue;
+//            }
 
-            switch (type) {
-            case double_n:
-                writeDouble(fieldName, val);
-                break;
-            case float_n:
-                writeFloat(fieldName, val);
-                break;
-            case integer:
-                writeInt(fieldName, val);
-                break;
-            case long_n:
-                writeLong(fieldName, val);
-                break;
-            case tdate:
-                writeDate(fieldName, val);
-            case string:
-            case text_general:
-                writeStr(fieldName, val, true);
-                break;
-            default:
-                throw new RuntimeException("The type " + type + " does not support");
-            }
+//            switch (type) {
+//            case double_n:
+//                writeDouble(fieldName, val);
+//                break;
+//            case float_n:
+//                writeFloat(fieldName, val);
+//                break;
+//            case integer:
+//                writeInt(fieldName, val);
+//                break;
+//            case long_n:
+//                writeLong(fieldName, val);
+//                break;
+//            case tdate:
+//                writeDate(fieldName, val);
+//                break;
+//            case string:
+//            case text_general:
+//                writeStr(fieldName, val, true);
+//                break;
+//            default:
+//                throw new RuntimeException("The type " + type + " does not support");
+//            }
         }
 
         decLevel();
         writer.write("\n</doc>");
     }
+    //add by xfx
+    
+    //add by xfx
+    private void writeCol(String name, String val) throws IOException {
+    	indent();
+        writer.write('<');
+        writer.write(name);
+        writer.write(">");
+
+        writer.write(val);
+
+        writer.write('<');
+        writer.write('/');
+        writer.write(name);
+        writer.write('>');
+    }
+    //add by xfx
 
     private void writeNull(String name) throws IOException {
         writePrim("null", name, "", false);
