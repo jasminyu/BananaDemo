@@ -28,6 +28,7 @@ import javax.xml.bind.Unmarshaller;
 import java.io.*;
 import java.text.ParseException;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class SolrUtils {
@@ -132,6 +133,9 @@ public class SolrUtils {
 
     protected static void addJsonElement(JsonObject jsonObject, String col, byte[] bytes) {
         if (bytes == null) {
+            //add by xfx
+        	jsonObject.addProperty(col, "");
+        	//add by xfx
             return;
         }
 
@@ -347,6 +351,21 @@ public class SolrUtils {
             throw new LogQueryException(errMsg);
         }
     }
+    
+    //add by xfx
+    public static JsonObject convertJsonObject(JsonObject jsonObject) {
+    	JsonObject newJsonObject = new JsonObject();
+    	Set<Map.Entry<String, JsonElement>> entrySet = jsonObject.entrySet();
+    	for(Entry<String, JsonElement> entry : entrySet) {
+    		if(LogConfFactory.columnfullNameMap.containsKey(entry.getKey())) {
+    			newJsonObject.add(LogConfFactory.columnfullNameMap.get(entry.getKey()), entry.getValue());
+    		} else {
+    			newJsonObject.add(entry.getKey(), entry.getValue());
+    		}
+    	}
+    	return newJsonObject;
+    }
+    //add by xfx
 
     protected static String getCollWithShardId(String collection, String shardId) {
         return collection + shardId;
