@@ -10,7 +10,7 @@
       ],
       "list": {
         "0": {
-          "query": "*",
+          "query": "url:\"etisalat.com\"",
           "alias": "",
           "color": "#7EB26D",
           "id": 0,
@@ -29,9 +29,9 @@
       ],
       "list": {
         "0": {
-          "from": "2014-04-02T05:07:22.216Z",
-          "to": "2014-04-02T05:22:22.216Z",
-          "field": "event_timestamp",
+          "from": "2016-05-01T18:00:00.000Z",
+          "to": "2016-05-01T19:59:59.000Z",
+          "field": "timestamp",
           "type": "time",
           "mandate": "must",
           "active": true,
@@ -46,41 +46,6 @@
   },
   "rows": [
     {
-      "title": "Overview",
-      "height": "50px",
-      "editable": true,
-      "collapse": false,
-      "collapsable": true,
-      "panels": [
-        {
-          "error": false,
-          "span": 6,
-          "editable": true,
-          "type": "text",
-          "loadingEditor": false,
-          "status": "Stable",
-          "mode": "markdown",
-          "content": "You may be seeing a message that says Solr is not reachable or that the collection is not found. Click on _Configure Dashboard_ (cog icon) on the top right and set the Solr server and collection. By default, we have configured the dashboard to point to server _http://localhost:8983_ and collection _collection1_. You can also choose how many rows you want to have in the dashboard. \n\nTo configure what panels appear in a specific row, click on the _Configure Row_  (cog icon) at the far left of the row.\n\nEach panel can be configured by clicking on _Configure_ (cog icon) near the top right of the panel (just to the left of the panel type). The span of the panel determines its width; each row has width 12, and each panel can take up all or part of this span.\n\nAfter reading these _text panels_ (which are useful for presenting information about a dashboard), you can delete them by clicking on the \"x\" towards the top right of the panel.",
-          "style": {},
-          "title": "Configure Dashboard"
-        },
-        {
-          "error": false,
-          "span": 6,
-          "editable": true,
-          "group": [
-            "default"
-          ],
-          "type": "text",
-          "status": "Stable",
-          "mode": "markdown",
-          "content": "In the row below, we have put in a _time picker_ and a _search bar._ Banana is primarily designed for time series data, and we expect every dashboard to have a time picker. You will also almost always have a search bar for user searches. \n\nBelow that there is a hidden row that contains a _filtering_ module, which is used to configure global filter queries. You will almost certainly want to have one. Clicking on any facet in the terms module will filter results by that value. You can modify each filter once it is created; you can change the value and/or choose between \"must\", \"must not\" and \"either.\"\n\nClick on the right-facing triangle to the far left of the row to _Expand Row_. You can click on the upward-facing triangle on any row in order to _Hide Row._",
-          "style": {},
-          "title": "Timestamps, Queries and Filters"
-        }
-      ]
-    },
-    {
       "title": "Query and Time Window",
       "height": "50px",
       "editable": true,
@@ -88,14 +53,56 @@
       "collapsable": true,
       "panels": [
         {
+          "error": false,
+          "span": 3,
+          "editable": true,
+          "type": "text",
+          "loadingEditor": false,
+          "status": "Stable",
+          "mode": "text",
+          "content": "SEARCH KEYWORDS:\nurl,source_ip,destination_ip\nurl:\"google.com\"\nsource_ip:xxx.xxx.xxx.xxx\ndestination_ip:xxx.xxx.xxx",
+          "style": {
+            "font-size": "8pt"
+          },
+          "title": "Usage of search function",
+          "show_help_message": true,
+          "info_mode": "text",
+          "info_font_size": "8pt",
+          "help_message": "url, destination_ip,source_ip"
+        },
+        {
+          "error": false,
+          "span": 4,
+          "editable": true,
+          "group": [
+            "default"
+          ],
+          "type": "query",
+          "label": "Search",
+          "history": [
+            "url:163.com",
+            "*:*",
+            "rowkey:abc-efg"
+          ],
+          "remember": 10,
+          "pinned": true,
+          "query": "*:*",
+          "title": "Search",
+          "spyable": true,
+          "def_type": "",
+          "show_help_message": true,
+          "info_mode": "text",
+          "info_font_size": "12pt",
+          "help_message": "Usage of searching function:\nurl:\"google.com\" ;\nurl:\"google.com\" AND url:\"youtube.com\" \nurl:\"google.com\" OR url:\"youtube.com\"\ndestination_ip:xxx.xxx.xxx.xxx\nsource_ip:xxx.xxx.xxx.xxx"
+        },
+        {
           "error": "",
-          "span": 6,
+          "span": 5,
           "editable": true,
           "type": "timepicker",
           "loadingEditor": false,
           "status": "Stable",
-          "mode": "relative",
-          "spyable" : true,
+          "mode": "absolute",
           "time_options": [
             "5m",
             "15m",
@@ -103,15 +110,10 @@
             "6h",
             "12h",
             "24h",
-            "2d",
-            "7d",
-            "30d",
-            "90d",
-            "1y",
-            "5y"
+            "7d"
           ],
-          "timespan": "15m",
-          "timefield": "event_timestamp",
+          "timespan": "7d",
+          "timefield": "timestamp",
           "timeformat": "",
           "refresh": {
             "enable": false,
@@ -119,217 +121,127 @@
             "min": 3
           },
           "filter_id": 0,
-          "title": "Time Window"
+          "spyable": true,
+          "title": "Time Window",
+          "time": {
+            "from": "01/05/2016 00:00:00",
+            "to": "01/05/2016 23:59:59"
+          }
         },
         {
-          "error": false,
-          "span": 6,
+          "span": 4,
           "editable": true,
-          "spyable" : true,
-          "group": [
-            "default"
-          ],
-          "type": "query",
-          "label": "Search",
-          "history": [
-            "*"
-          ],
-          "remember": 10,
-          "pinned": true,
-          "query": "*",
-          "title": "Search",
-          "def_type": ""
+          "type": "hits",
+          "loadingEditor": false,
+          "queries": {
+            "mode": "all",
+            "ids": [
+              0
+            ],
+            "query": "q=url%3A%00etisalat.com%22&fq=timestamp:[2016-11-01T18:00:00.000Z%20TO%202016-11-01T19:59:59.000Z]&wt=json&rows=0\n",
+            "basic_query": "",
+            "custom": ""
+          },
+          "style": {
+            "font-size": "16pt"
+          },
+          "arrangement": "horizontal",
+          "chart": "total",
+          "counter_pos": "above",
+          "donut": false,
+          "tilt": false,
+          "labels": true,
+          "spyable": true,
+          "title": "Total Hits",
+          "show_queries": true
         }
       ]
     },
     {
-      "title": "Filters",
-      "height": "50px",
-      "editable": true,
-      "collapse": true,
-      "collapsable": true,
-      "panels": [
-        {
-          "error": false,
-          "span": 12,
-          "editable": true,
-          "spyable" : true,
-          "group": [
-            "default"
-          ],
-          "type": "filtering"
-        }
-      ]
-    },
-    {
-      "title": "Facets, Histogram and Table",
+      "title": "Table",
       "height": "150px",
       "editable": true,
       "collapse": false,
       "collapsable": true,
       "panels": [
         {
-          "error": false,
           "span": 12,
           "editable": true,
-          "group": [
-            "default"
-          ],
-          "type": "text",
-          "status": "Stable",
-          "mode": "markdown",
-          "content": "Without knowing about your data, I cannot fully configure the panels I have provided below. However, I have provided you with some starting points, assuming that your time field is \"event_timestamp\" and that there is a field called \"message\" that you wish to facet on in order to view the top terms that appear in the \"message\" field and their frequency. If there is no data, these panels will be empty, and may give an error.\n\nThe _histogram_ panel allows you to plot either _counts_ or a specific field's (integer) _values_ across time. If you go to  _Configure_, the panel allows you to set the type of chart and what variable is plotted (if choosing the _values_ option). Moreover, when plotting values, you can specify a _group by_ field which will produce multiple charts. You can modify the time window for the entire page from within the histogram panel.\n\nThe _terms_ panel is great for visualizing facets--as pie charts, bar charts or tables. Clicking on a term will create a global filter query restricting the result set (across all panels within the page) to the field value that is selected. You could have many such panels depending on the number of fields you choose to facet on.\n\nThe *table* panel at the bottom provides you a detailed view of search results. It has attempted to list your fields to the left; select a few to view them in the table. You can sort by any field. Click on a particular row to expand the resulting document that was returned.",
-          "style": {},
-          "title": "Facets, Histogram and Table"
-        }
-      ]
-    },
-    {
-      "title": "Graph",
-      "height": "250px",
-      "editable": true,
-      "collapse": false,
-      "collapsable": true,
-      "panels": [
-        {
-          "span": 6,
-          "editable": true,
-          "type": "histogram",
+          "type": "table",
           "loadingEditor": false,
-          "mode": "count",
+          "status": "Stable",
           "queries": {
             "mode": "all",
             "ids": [
               0
             ],
-            "query": "q=*&wt=json&rows=0",
+            "query": "q=url%3A%22etisalat.com%22&fq=timestamp:[2016-11-01T18:00:00.000Z%20TO%202016-11-01T19:59:59.000Z]&wt=json&rows=1000&total=200000",
+            "basic_query": "q=url%3A%22etisalat.com%22&fq=timestamp:[2016-11-01T18:00:00.000Z%20TO%202016-11-01T19:59:59.000Z]",
             "custom": ""
           },
-          "max_rows": 100000,
-          "value_field": null,
-          "group_field": null,
-          "auto_int": true,
-          "resolution": 100,
-          "interval": "10s",
-          "intervals": [
-            "auto",
-            "1s",
-            "1m",
-            "5m",
-            "10m",
-            "30m",
-            "1h",
-            "3h",
-            "12h",
-            "1d",
-            "1w",
-            "1M",
-            "1y"
-          ],
-          "fill": 0,
-          "linewidth": 3,
-          "timezone": "browser",
-          "spyable": true,
-          "zoomlinks": true,
-          "bars": true,
-          "stack": true,
-          "points": false,
-          "lines": false,
-          "legend": true,
-          "x-axis": true,
-          "y-axis": true,
-          "percentage": false,
-          "interactive": true,
-          "options": true,
-          "tooltip": {
-            "value_type": "cumulative",
-            "query_as_alias": false
-          },
-          "title": "Event Counts"
-        },
-        {
-          "error": false,
-          "span": 6,
-          "editable": true,
-          "group": [
-            "default"
-          ],
-          "type": "terms",
-          "queries": {
-            "mode": "all",
-            "ids": [
-              0
-            ],
-            "query": "q=*&wt=json&rows=0&fq=event_timestamp:[2014-04-02T05:07:22.000Z%20TO%202014-04-02T05:22:22.000Z]&facet=true&facet.field=message&facet.range=event_timestamp&facet.range.start=2014-04-02T05:07:22.000Z&facet.range.end=2014-04-02T05:22:22.000Z&facet.range.gap=%2B1DAY&facet.limit=100"
-          },
-          "field": "message",
-          "exclude": [],
-          "missing": false,
-          "other": false,
           "size": 100,
-          "order": "count",
-          "style": {
-            "font-size": "10pt"
-          },
-          "donut": true,
-          "tilt": true,
-          "labels": false,
-          "arrangement": "horizontal",
-          "chart": "pie",
-          "counter_pos": "none",
-          "title": "Message Terms",
-          "spyable": true,
-          "time_field": "event_timestamp"
-        }
-      ]
-    },
-    {
-      "title": "Events",
-      "height": "650px",
-      "editable": true,
-      "collapse": false,
-      "collapsable": true,
-      "panels": [
-        {
-          "error": false,
-          "span": 12,
-          "editable": true,
-          "group": [
-            "default"
-          ],
-          "type": "table",
-          "size": 100,
-          "pages": 5,
+          "pages": 2000,
           "offset": 0,
           "sort": [
-            "id",
-            "desc"
+            "timestamp"
           ],
+          "group": "default",
           "style": {
             "font-size": "9pt"
           },
           "overflow": "min-height",
           "fields": [
-            "message"
+                        "Source_Ip",
+			"Timestamp",
+			"Http_Method",
+			"URL",
+                        "Response_Code",
+			"Status_Code",
+                        "Filter_Category",
+                        "Destination_Ip",
+                        "Response_Time",
+                        "Proxy_Server_Name",
+                        "Proxy_Ip",
+                        "X-FORWARDER_FOR",
+                        "Content_Type"
           ],
           "highlight": [],
-          "sortable": true,
+          "sortable": false,
           "header": true,
           "paging": true,
-          "spyable": true,
-          "queries": {
-            "mode": "all",
-            "ids": [
-              0
-            ],
-            "query": "q=*&wt=json&rows=500&fq=event_timestamp:[2014-04-02T05:07:22.000Z%20TO%202014-04-02T05:22:22.000Z]&sort=id desc"
-          },
-          "field_list": true,
-          "status": "Stable",
+          "field_list": false,
           "trimFactor": 300,
           "normTimes": true,
-          "title": "Events",
-          "time_field": "event_timestamp"
+          "spyable": true,
+          "saveOption": "json",
+          "exportSize": 200000,
+          "exportAll": true,
+          "displayLinkIcon": true,
+          "imageFields": [],
+          "imgFieldWidth": "auto",
+          "imgFieldHeight": "85px",
+          "title": "Table panel",
+          "important_fields": [
+            "rowkey",
+            "Source_Ip",
+                        "Timestamp",
+                        "Http_Method",
+                        "URL",
+                        "Response_Code",
+                        "Status_Code",
+                        "Filter_Category",
+                        "Destination_Ip",
+                        "Response_Time",
+                        "Proxy_Server_Name",
+                        "Proxy_Ip",
+                        "X-FORWARDER_FOR",
+                        "Content_Type"
+          ],
+          "show_queries": true,
+          "table_total": 200000,
+          "test": true,
+          "nextCursorMark": "1482303878423%23tb_20161101_shard29%232",
+          "nums": 4144
         }
       ]
     }
@@ -344,7 +256,7 @@
   "failover": false,
   "panel_hints": true,
   "loader": {
-    "save_gist": true,
+    "save_gist": false,
     "save_elasticsearch": true,
     "save_local": true,
     "save_default": true,
@@ -355,12 +267,23 @@
     "load_elasticsearch": true,
     "load_elasticsearch_size": 20,
     "load_local": true,
-    "hide": false
+    "hide": false,
+    "dropdown_collections": true
   },
   "solr": {
-    "server": "/solr/",
-    "core_name": "collection1",
-    "core_list": [],
+    "server": "/LogAnalyzer/",
+    "core_name": "log",
+    "core_list": [
+      "cold_tb_20161015",
+      "cold_tb_20161013",
+      "log",
+      "cold_tb_20161014",
+      "term",
+      "hot_tb_20161012",
+      "hot_tb_20161011",
+      "nterm",
+      "hot_tb_20161010"
+    ],
     "global_params": ""
   }
 }
