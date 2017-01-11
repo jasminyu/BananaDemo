@@ -719,6 +719,7 @@ public class QueryBatch {
         int numFound = 0;
         int left = queryCondition.getTotalNum();
         long actualFetchRows = 0;
+        boolean first = true;
         for (Map.Entry<ResultCnt, String> entry : entrySet) {
             resultCnt = entry.getKey();
             querySolrTask = new SolrQueryTask(qString, entry.getValue());
@@ -748,6 +749,14 @@ public class QueryBatch {
 
             querySolrTask.setRows(resultCnt.getTotalNum() <= actualFetchRows ? String.valueOf(resultCnt.getTotalNum()) :
                     String.valueOf(actualFetchRows));
+            
+            if(first) {
+            	cursor.setCollection(querySolrTask.getCollection());
+            	cursor.setShardId(SolrUtils.getShardId(querySolrTask.getShardId()));
+            	cursor.setFetchIdx(0);
+            	first = false;
+            	logger.info("Query session {}, initial cursor is {}", cursor.getCacheKey(), cursor.toString());
+            }
 
             if (queryCondition.isExportOp()) {
                 solrHandlerFactory.submitQuerySolrTask(querySolrTask);
