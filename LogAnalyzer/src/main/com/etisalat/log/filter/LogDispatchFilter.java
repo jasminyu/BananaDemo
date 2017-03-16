@@ -353,6 +353,7 @@ public class LogDispatchFilter implements Filter {
 
     private void handleSelectReqWithoutRows(String path, QueryCondition queryCondition, ServletResponse response)
             throws IOException {
+        Long start = System.currentTimeMillis();
         logger.info("Start to handleSelectReqWithoutRows");
         logger.debug("path : {}.", path);
         logger.debug("Original queryString : {}.", queryCondition.getQueryString());
@@ -400,7 +401,7 @@ public class LogDispatchFilter implements Filter {
             }
         }
 
-        logger.info("End to handleSelectReqWithoutRows");
+        logger.info("End to handleSelectReqWithoutRows, cost : {}", System.currentTimeMillis() - start);
         return;
     }
 

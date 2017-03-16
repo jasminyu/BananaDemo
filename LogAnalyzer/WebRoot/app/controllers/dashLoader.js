@@ -37,7 +37,8 @@ function (angular, _) {
         return (_l.load_elasticsearch || _l.load_gist || _l.load_local);
       }
       if(type === 'load') {
-        return (_l.load_elasticsearch || _l.load_gist || _l.load_local);
+        //临时注释，后期看需要开放
+        return ((_l.load_elasticsearch || _l.load_gist || _l.load_local) && false);
       }
       if(type === 'save') {
         return (_l.save_elasticsearch || _l.save_gist || _l.save_local || _l.save_default);

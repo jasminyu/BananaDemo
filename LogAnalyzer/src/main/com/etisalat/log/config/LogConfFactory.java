@@ -50,6 +50,9 @@ public class LogConfFactory {
     public static final Map<String, String> columnQualifiersMap;
     public static final Map<String, SortField.Type> columnQualifiersTypeMap;
     public static final Map<String, byte[]> columnQualifiersBytesMap;
+    //add by xfx
+    public static final Map<String, String> columnfullNameMap;
+    //add by xfx
     public static final String collectionPrefix;
     public static final int collectionPrefixLen;
     public static final String collectionSuffixDateFormatStr;
@@ -208,6 +211,26 @@ public class LogConfFactory {
             }
             columnQualifiersBytesMap.put(strArr[0], Bytes.toBytes(strArr[0]));
         }
+        
+        //add by xfx
+        columnfullNameMap = new LinkedHashMap<String, String>();
+        String columnMapping = LogConfFactory.getString(LogConstants.COLUMN_FULLNAME_QUALIFIERS);
+        if (StringUtils.isBlank(columnMapping)) {
+            String errMsg2 = LogConstants.COLUMN_FULLNAME_QUALIFIERS + " config value is blank, it should like a:a1,b:b2";
+            logger.error(errMsg2);
+            throw new RuntimeException(errMsg2);
+        }
+        String mapArr[] = columnMapping.split(","); 
+        String colName[] = null;
+        for(String tmp : mapArr) {
+        	colName = tmp.split(":");
+        	if(colName.length != 2) {
+        		logger.error(errMsg);
+        		throw new RuntimeException(errMsg);
+        	}
+        	columnfullNameMap.put(colName[0], colName[1]);
+        }
+        //add by xfx
 
         collectionPrefix = LogConfFactory.getString(LogConstants.COLLECTION_PREFIX, "tb_");
         collectionPrefixLen = collectionPrefix.length();

@@ -119,7 +119,10 @@ function (angular, app, _, kbn, moment) {
 			$scope.Math = Math;
 			// Solr
 			$scope.sjs = $scope.sjs || sjsResource(dashboard.current.solr.server + dashboard.current.solr.core_name); // jshint ignore: line
-			$scope.$on('refresh',function(){$scope.get_data();});
+			$scope.$on('refresh',function(){
+				$scope.panel.offset = 0;
+				$scope.get_data();
+			});
 			$scope.panel.exportSize = $scope.panel.size * $scope.panel.pages; 
 			$scope.fields = fields;
 			
@@ -254,7 +257,7 @@ function (angular, app, _, kbn, moment) {
 		return $scope.data.slice(start,end);
 	};
 
-		$scope.get_data = function(segment,query_id) {
+		$scope.get_data = function(segment,query_id,isUpdateSortState) {
 			$scope.panel.error =  false;
 			delete $scope.panel.error;
 			
@@ -313,6 +316,10 @@ function (angular, app, _, kbn, moment) {
 
 			if ($scope.panel.sort[0] !== undefined && $scope.panel.sort[1] !== undefined && $scope.panel.sortable) {
 				sorting = '&sort=' + $scope.panel.sort[0] + ' ' + $scope.panel.sort[1];
+				sort_rows_limit = '&rows=' + ($scope.panel.offset + parseInt(rows_limit.split('=')[1]));
+			}
+			
+			if(isUpdateSortState) {
 				sort_rows_limit = '&rows=' + ($scope.panel.offset + parseInt(rows_limit.split('=')[1]));
 			}
 
@@ -437,6 +444,7 @@ function (angular, app, _, kbn, moment) {
 
 		$scope.close_edit = function() {
 			if($scope.refresh) {
+				$scope.panel.offset = 0;
 				$scope.get_data();
 			}
 			$scope.refresh =  false;

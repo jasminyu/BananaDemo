@@ -46,6 +46,7 @@ function (angular, _, config) {
 
     // TODO: add solr support
 
+    /*
     this.map = function() {
       // Check USE_ADMIN_LUKE flag in config.js
       var fieldApi = '';
@@ -95,6 +96,7 @@ function (angular, _, config) {
         return mapping;
       });
     };
+    */
 
     // I don't use this function for Solr.
     var flatten = function(obj,prefix) {

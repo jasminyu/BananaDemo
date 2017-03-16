@@ -66,13 +66,13 @@ function (angular, app, _, moment, kbn, $) {
       switch($scope.panel.mode) {
       case 'absolute':
         $scope.time = {
-          from : moment($scope.panel.time.from,'MM/DD/YYYY HH:mm:ss') || moment(kbn.time_ago($scope.panel.timespan)),
-          to   : moment($scope.panel.time.to,'MM/DD/YYYY HH:mm:ss') || moment()
+          from : moment($scope.panel.time.from,'DD/MM/YYYY HH:mm:ss') || moment(kbn.time_ago($scope.panel.timespan)),
+          to   : moment($scope.panel.time.to,'DD/MM/YYYY HH:mm:ss') || moment()
         };
         break;
       case 'since':
         $scope.time = {
-          from : moment($scope.panel.time.from,'MM/DD/YYYY HH:mm:ss') || moment(kbn.time_ago($scope.panel.timespan)),
+          from : moment($scope.panel.time.from,'DD/MM/YYYY HH:mm:ss') || moment(kbn.time_ago($scope.panel.timespan)),
           to   : moment()
         };
         break;
@@ -152,8 +152,8 @@ function (angular, app, _, moment, kbn, $) {
       if($scope.panel.mode !== 'relative') {
 
         $scope.panel.time = {
-          from : $scope.time.from.format("MM/DD/YYYY HH:mm:ss"),
-          to : $scope.time.to.format("MM/DD/YYYY HH:mm:ss"),
+          from : $scope.time.from.format("DD/MM/YYYY HH:mm:ss"),
+          to : $scope.time.to.format("DD/MM/YYYY HH:mm:ss"),
         };
       } else {
         delete $scope.panel.time;
@@ -171,7 +171,7 @@ function (angular, app, _, moment, kbn, $) {
     $scope.to_now = function() {
       $scope.timepicker.to = {
         time : moment().format("HH:mm:ss"),
-        date : moment().format("MM/DD/YYYY")
+        date : moment().format("DD/MM/YYYY")
       };
     };
 
@@ -179,7 +179,7 @@ function (angular, app, _, moment, kbn, $) {
       $scope.panel.timespan = timespan;
       $scope.timepicker.from = {
         time : moment(kbn.time_ago(timespan)).format("HH:mm:ss"),
-        date : moment(kbn.time_ago(timespan)).format("MM/DD/YYYY")
+        date : moment(kbn.time_ago(timespan)).format("DD/MM/YYYY")
       };
       $scope.time_apply();
     };
@@ -201,11 +201,11 @@ function (angular, app, _, moment, kbn, $) {
         var timeNumber = $scope.panel.timespan.substr(0, $scope.panel.timespan.length-1);
 
         from = $scope.panel.mode === 'relative' ? moment().subtract(timeShorthand,timeNumber) :
-          moment(moment($scope.timepicker.from.date).format('MM/DD/YYYY') + " " + $scope.timepicker.from.time,'MM/DD/YYYY HH:mm:ss');
+          moment(moment($scope.timepicker.from.date).format('DD/MM/YYYY') + " " + $scope.timepicker.from.time,'DD/MM/YYYY HH:mm:ss');
         // from = $scope.panel.mode === 'relative' ? moment(kbn.time_ago($scope.panel.timespan)) :
-        //   moment(moment.utc($scope.timepicker.from.date).format('MM/DD/YYYY') + " " + $scope.timepicker.from.time,'MM/DD/YYYY HH:mm:ss');
+        //   moment(moment.utc($scope.timepicker.from.date).format('DD/MM/YYYY') + " " + $scope.timepicker.from.time,'DD/MM/YYYY HH:mm:ss');
         to = $scope.panel.mode !== 'absolute' ? moment() :
-          moment(moment($scope.timepicker.to.date).format('MM/DD/YYYY') + " " + $scope.timepicker.to.time,'MM/DD/YYYY HH:mm:ss');
+          moment(moment($scope.timepicker.to.date).format('DD/MM/YYYY') + " " + $scope.timepicker.to.time,'DD/MM/YYYY HH:mm:ss');
         
       // Otherwise (probably initialization)
       } else {
@@ -215,9 +215,9 @@ function (angular, app, _, moment, kbn, $) {
           $scope.time.to;
       }
 
-      if (from.valueOf() >= to.valueOf()) {
-        from = moment(to.valueOf() - 1000);
-      }
+      //if (from.valueOf() >= to.valueOf()) {
+      //  from = moment(to.valueOf() - 1000);
+      //}
 
       // Fix for SILK-4 and SILK-29 bugs
       // This $timeout function causes the timepicker skip-back-one-day bugs.
@@ -328,11 +328,11 @@ function (angular, app, _, moment, kbn, $) {
       $scope.timepicker = {
         from : {
           time : from.format("HH:mm:ss"),
-          date : from.format("MM/DD/YYYY")
+          date : from.format("DD/MM/YYYY")
         },
         to : {
           time : to.format("HH:mm:ss"),
-          date : to.format("MM/DD/YYYY")
+          date : to.format("DD/MM/YYYY")
         }
       };
     }
